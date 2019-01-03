@@ -70,7 +70,7 @@ class AmbientRoom(DefaultRoom):
 from evennia import DefaultObject, DefaultCharacter, DefaultRoom, DefaultScript
 
 # -----------------------------------------------------------------------------
-# Storing the messages
+# Ambient Message Storage
 # -----------------------------------------------------------------------------
 
 
@@ -134,20 +134,20 @@ class AmbientRoom(DefaultRoom, AmbientObj):
         """
         ambient_msgs = self.db.ambient_msgs
         for obj in self.contents_get():
-            try:
-                ambient_msgs.update(obj.return_ambient_msgs())
-            except:
-                continue
+            ambient_msgs.update(obj.get("ambient_msgs", []))
         return ambient_msgs
 
 # -----------------------------------------------------------------------------
-# Sending the messages
+# Ambient Message Triggers
 # -----------------------------------------------------------------------------
 
 
 class Ambiance(DefaultScript):
     """
-    Triggers Ambiance Messages. Meant to be attached to a room.
+    This is a Global Script. At each interval it collects a list of rooms
+    which contains players. It then displays an ambiance message to it's
+    contents selected from the messages returned by it's return_ambient_msgs
+    function.
     """
     def at_script_creation(self):
         self.key = "ambiance_script"
