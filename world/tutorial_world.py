@@ -82,10 +82,10 @@ handling.
 # We start by importing all the objects and tools we plan to build with
 from evennia import create_object
 from evennia.contrib import tutorial_world
-from typeclasses import rooms, exits
+from evennia.objects import rooms, exits
 
 # Next we create all the rooms in our Tutorial World at the beginning so 
-# we can bulid and connect them in any order.
+# we can build and connect them in any order.
 intro = create_object(tutorial_world.rooms.IntroRoom, key="Introduction")
 outro = create_object(tutorial_world.rooms.OutroRoom, key="Leaving Tutorial")
 cliff = create_object(tutorial_world.rooms.WeatherRoom, 
@@ -106,8 +106,8 @@ underground = create_object(tutorial_world.rooms.TutorialRoom,
                             key="Underground passages", 
                             aliases=["passages", "underground", "tut#07"])
 cell = create_object(tutorial_world.rooms.DarkRoom, 
-                      key="Dark cell", 
-                      aliases=["dark", "cell", "tut#08"])
+                     key="Dark cell",
+                     aliases=["dark", "cell", "tut#08"])
 gate = create_object(tutorial_world.rooms.TutorialRoom, 
                      key="Ruined gatehouse", 
                      aliases=["gatehouse", "tut#09"])
@@ -138,17 +138,17 @@ hero = create_object(tutorial_world.rooms.TeleportRoom,
 tomb = create_object(tutorial_world.rooms.TutorialRoom, 
                      key="Ancient tomb", 
                      aliases=["tut#15"])
-exit = create_object(tutorial_world.rooms.OutroRoom, 
-                       key="End of tutorial", 
-                       aliases=["end", "tut#16"])
+exitroom = create_object(tutorial_world.rooms.OutroRoom,
+                         key="End of tutorial",
+                         aliases=["end", "tut#16"])
                      
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Entry to the Tutorial World.
 #
 # This creates an entry into the Tutorial World from where ever the player
 # is standing. 'Caller' is a reference to the user of the batchcode cmd.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 entry = create_object(exits.Exit, key="Tutorial", aliases=["tut", "intro"], 
                       location=caller.location, destination=intro)
@@ -156,11 +156,11 @@ entry = create_object(exits.Exit, key="Tutorial", aliases=["tut", "intro"],
 entry.db.desc = ("This starts the |gEvennia tutorial|n, using a small solo "
                  "game to show off some of the server's possibilities.")
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Introduction Room
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -214,13 +214,13 @@ intro_ex2 = create_object(exits.Exit, key="Begin Adventure",
                           aliases=["begin", "start"], 
                           location=intro, destination=cliff)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Outro Room
 # Called from the Intro room; this is a shortcut out of the tutorial. 
 # There is another outro room at the end showing more text.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -239,7 +239,7 @@ the tutorial.
 outro_ex1 = create_object(exits.Exit, key="Start Again", aliases=["start"], 
                           location=outro, destination=intro)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # The Cliff
 # This room inherits from a Typeclass called WeatherRoom. It regularly
@@ -255,7 +255,7 @@ outro_ex1 = create_object(exits.Exit, key="Start Again", aliases=["start"],
 # This room has Mood-setting details to look at. This makes use of the custom 
 # look command in use on tutorial rooms to display extra text strings. It
 # adds the detail as a dictionary Attribute on the room.
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -322,7 +322,8 @@ cliff_ex1 = create_object(exits.Exit, key="northern path",
                           location=cliff, destination=osinn)
 
 # We'll hide the exit until they have a tag given by the 'climb' command.
-cliff_ex1.locks.add("view:tag(tutorial_climbed_tree, tutorial_world); traverse:tag(tutorial_climbed_tree, tutorial_world)")
+cliff_ex1.locks.add("view:tag(tutorial_climbed_tree, tutorial_world); "
+                    "traverse:tag(tutorial_climbed_tree, tutorial_world)")
 
 # Returned by the 'look' command.
 cliff_ex1.db.desc = ("""
@@ -352,12 +353,12 @@ east - two heavy stone pillars anchor the bridge on this side. The
 bridge sways precariously in the storm.
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # The Cliff - Old Well
 # This is the well you will come back up from if you end up in the underground
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 cliff_well = create_object(key="Old well", aliases=["well"], location=cliff)
 
@@ -389,11 +390,11 @@ you can ever budge this on your own (besides, what would you do with
 all those stones? Start your own quarry?).
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # The Cliff - Wooden Sign
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 cliff_sign = create_object(key="Wooden Sign", aliases=["sign"], 
                            typeclass=tutorial_world.objects.Readable,
@@ -433,12 +434,12 @@ cliff_sign.attributes.add("get_err_msg", """
 The sign is securely anchored to the ground.
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # The Cliff - Gnarled Old Tree
 # A climbable object for discovering a hidden exit
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 cliff_tree = create_object(key="gnarled old trees", 
@@ -489,13 +490,13 @@ The group of old trees have withstood the eternal wind for hundreds
 of years. You will not uproot them any time soon.
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Outside Evennia Inn
 # A hidden area which is unlocked by using the 'climb' command on the 
 # 'Gnarled old tree' in 'The Cliff' room.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # Returned by the 'look' command.
 osinn.db.desc = ("""
@@ -540,11 +541,11 @@ osinn_ex1 = create_object(exits.Exit, key="back to cliff",
 osinn_ex2 = create_object(exits.Exit, key="enter", aliases=["in"], 
                           location=osinn, destination=cliff)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # The Evennia Inn
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # Returned by the 'look' command.
 evinn.db.desc = ("""
@@ -590,12 +591,12 @@ evinn_ex1 = create_object(exits.Exit, key="leave", aliases=["out"],
                           location=evinn, destination=osinn)
 
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # The Evennia Inn - barrel
 # This is the well you will come back up from if you end up in the underground.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 evinn_barrel = create_object(tutorial_world.objects.WeaponRack, key="barrel",
                              location=evinn)
@@ -626,7 +627,7 @@ The barkeep shakes his head. He says: 'Sorry pal. We get a lot of needy
 adventurers coming through here. One weapon per person only.'
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # The old bridge
 # The bridge uses parent tutorial_world.rooms.BridgeRoom, which causes
@@ -635,7 +636,7 @@ adventurers coming through here. One weapon per person only.'
 # regular exits back to the cliff, that is handled by the bridge
 # typeclass itself.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -674,7 +675,7 @@ bridge.attributes.add("east_exit", "tut#09")
 # Fall location is the cliff ledge (detailed next)
 bridge.attributes.add("fall_exit", "tut#06")
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Ledge under the bridge
 # You only end up at the ledge if you fall off the bridge. It
@@ -682,7 +683,7 @@ bridge.attributes.add("fall_exit", "tut#06")
 # it as the target of the "fall_exit", which is a special
 # feature of the BridgeRoom.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -744,14 +745,14 @@ opening is small but large enough for you to push through. It looks
 like it expands into a cavern further in.
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Underground passages
 # The underground passages allow the player to get back up to the
 # cliff again. If you look at the map, the 'dark cell' also connects
 # to here. We'll get to that later.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -818,19 +819,19 @@ start again, regardless of how you got here.
 # From the passages we get back up to the cliff, so we
 # open up a new exit back there.
 underground_ex1 = create_object(exits.Exit, key="climb the chain", 
-                          aliases=["climb", "chain"], 
-                          location=underground, destination=cliff)
+                                aliases=["climb", "chain"],
+                                location=underground, destination=cliff)
 underground_ex1.db.desc = ("""
 The chain is made of iron. It is rusty but you think it might still
 hold your weight even after all this time. Better hope you don't need
 to do this more times ...
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # The Dark Cell
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -885,11 +886,11 @@ Looking around repeatedly will eventually produce hints as to how to
 get out of the dark room.
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # The Dark Cell - Root-Covered Wall
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 cell_wall = create_object(tutorial_world.objects.CrumblingWall, 
                           key="root-covered wall",
@@ -913,7 +914,7 @@ cell_wall.locks.add("get:false()")
 # exit when its puzzle is solved connect to the Underground passages
 cell_wall.attributes.add("destination", underground)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Castle Gate
 # We are done with the underground, describe castle.
@@ -922,7 +923,7 @@ cell_wall.attributes.add("destination", underground)
 # ruined gatehouse is also the east_exit target for the bridge as
 # we recall.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -972,23 +973,23 @@ gate.locks.add("traverse:has_account()")
 # EXITS
 
 gate_ex1 = create_object(exits.Exit, key="Bridge over the abyss", 
-                          aliases=["bridge", "abyss", "west", "w"], 
-                          location=gate, destination=bridge)
+                         aliases=["bridge", "abyss", "west", "w"],
+                         location=gate, destination=bridge)
 gate_ex2 = create_object(exits.Exit, key="castle corner", 
-                          aliases=["corner", "east", "e"], 
-                          location=gate, destination=innerwall)
+                         aliases=["corner", "east", "e"],
+                         location=gate, destination=innerwall)
 gate_ex3 = create_object(exits.Exit, key="Standing archway", 
-                          aliases=["archway", "south", "s"], 
-                          location=gate, destination=innerwall)
+                         aliases=["archway", "south", "s"],
+                         location=gate, destination=innerwall)
 gate_ex3.db.desc = ("""
  It seems the archway leads off into a series of dimly lit rooms.
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Along the southern inner wall (south from gatehouse)
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -1025,11 +1026,11 @@ innerwall_ex2 = create_object(exits.Exit, key="overgrown courtyard",
                               aliases=["courtyard", "east", "e"], 
                               location=innerwall, destination=courtyard)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Corner of castle (east from gatehouse)
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -1063,11 +1064,11 @@ corner_ex1 = create_object(exits.Exit, key="gatehouse", aliases=["west", "w"],
                            location=corner, destination=gate)
 corner_ex2 = create_object(exits.Exit, key="courtyard", aliases=["south", "s"], 
                            location=corner, destination=courtyard)
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Corner of castle - Obelisk
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 corner_obelisk = create_object(tutorial_world.objects.Obelisk, 
                                key="obelisk", location=corner)
@@ -1080,18 +1081,18 @@ It's way too heavy for anyone to move.
 
 # Set the puzzle clues on the obelisk. The order should correspond
 # to the ids later checked by the antechamber puzzle.
-corner_obelisk.attributes.add("puzzle_descs", 
+corner_obelisk.attributes.add("puzzle_descs",
 ("You can briefly make out the image of |ba woman with a blue bird|n.",
-"You for a moment see the visage of |ba woman on a horse|n.",
-"For the briefest moment you make out an engraving of |ba regal woman wearing a crown|n.",
-"You think you can see the outline of |ba flaming shield|n in the stone.",
-"The surface for a moment seems to portray |ba sharp-faced woman with white hair|n."))
+ "You for a moment see the visage of |ba woman on a horse|n.",
+ "For the briefest moment you make out an engraving of |ba regal woman wearing a crown|n.",
+ "You think you can see the outline of |ba flaming shield|n in the stone.",
+ "The surface for a moment seems to portray |ba sharp-faced woman with white hair|n."))
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Corner of castle - Ghostly apparition
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 corner_mob = create_object(tutorial_world.mob.Mob, 
                            key="Ghostly apparition", 
@@ -1177,11 +1178,11 @@ mob_weapon.attributes.add("damage", "5")
 # Start the mob
 corner_mob.set_alive()
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # The courtyard
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -1226,17 +1227,17 @@ courtyard_ex1 = create_object(exits.Exit, key="castle corner",
                               aliases=["north", "n"], 
                               location=courtyard, destination=corner)
 courtyard_ex2 = create_object(exits.Exit, key="along inner wall", 
-                           aliases=["wall", "along", "west", "w"], 
-                           location=courtyard, destination=innerwall)
+                              aliases=["wall", "along", "west", "w"],
+                              location=courtyard, destination=innerwall)
 courtyard_ex3 = create_object(exits.Exit, key="ruined temple", 
-                           aliases=["temple", "east", "e"], 
-                           location=courtyard, destination=temple)
+                              aliases=["temple", "east", "e"],
+                              location=courtyard, destination=temple)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # The temple
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -1286,11 +1287,11 @@ The stairs are worn by the age-old passage of feet.
 # Lock the antechamber so the ghost cannot get in there.
 temple_ex2.locks.add("traverse:has_account()")
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Antechamber - below the temple
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -1324,18 +1325,18 @@ teleports to the Ancient Tomb treasure chamber.
 # EXITS
 
 antechamber_ex1 = create_object(exits.Exit, key="up the stairs to ruined temple", 
-                           aliases=["stairs", "temple", "up", "u"], 
-                           location=antechamber, destination=temple)
+                                aliases=["stairs", "temple", "up", "u"],
+                                location=antechamber, destination=temple)
 antechamber_ex2 = create_object(exits.Exit, key="Blue bird tomb", 
-                           aliases=["bird", "blue", "stone"], 
-                           location=antechamber, destination=bird)
+                                aliases=["bird", "blue", "stone"],
+                                location=antechamber, destination=bird)
 antechamber_ex2.db.desc = ("""
 The entrance to this tomb is decorated with a very lifelike blue bird.
 """)
 
 antechamber_ex3 = create_object(exits.Exit, key="Tomb of woman on horse", 
-                           aliases=["horse", "riding"], 
-                           location=antechamber, destination=horse)
+                                aliases=["horse", "riding"],
+                                location=antechamber, destination=horse)
 antechamber_ex3.db.desc = ("""
 The entrance to this tomb depicts a scene of a strong warrior woman on a black
 horse. She shouts and brandishes a glowing weapon as she charges down a hill 
@@ -1343,8 +1344,8 @@ towards some enemy not depicted.
 """)
 
 antechamber_ex4 = create_object(exits.Exit, key="Tomb of the crowned queen", 
-                           aliases=["crown", "queen"], 
-                           location=antechamber, destination=crown)
+                                aliases=["crown", "queen"],
+                                location=antechamber, destination=crown)
 antechamber_ex4.db.desc = ("""
 The entrance to this tomb shows a beautiful mural of a queen ruling
 from her throne, respectful subjects kneeling before her. On her head
@@ -1352,8 +1353,8 @@ is a crown that seems to shine with magical power.
 """)
 
 antechamber_ex5 = create_object(exits.Exit, key="Tomb of the shield", 
-                           aliases=["shield"], 
-                           location=antechamber, destination=shield)
+                                aliases=["shield"],
+                                location=antechamber, destination=shield)
 antechamber_ex5.db.desc = ("""
 This tomb shows a warrior woman fighting shadowy creatures from the
 top of a hill. Her sword lies broken on the ground before her but she
@@ -1362,8 +1363,8 @@ rams the shield into an enemy in wild desperation.
 """)
 
 antechamber_ex6 = create_object(exits.Exit, key="Tomb of the hero", 
-                           aliases=["knight", "hero", "monster", "beast"], 
-                           location=antechamber, destination=hero)
+                                aliases=["knight", "hero", "monster", "beast"],
+                                location=antechamber, destination=hero)
 antechamber_ex6.db.desc = ("""
 The entrance to this tomb shows a mural of an aging woman in a
 warrior's outfit. She has white hair yet her sword-arm shows no sign
@@ -1373,14 +1374,14 @@ strength of the legendary hero.
 """)
 
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Blue Bird Tomb
 # We create all the tombs. These all teleport to the dark cell
 # except one which is the one decided by the scene shown by the
 # Obelisk last we looked.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -1417,14 +1418,14 @@ the tomb of some sort of ancient heroine - it must be the goal you
 have been looking for!
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Tomb of woman on horse
 # We create all the tombs. These all teleport to the dark cell
 # except one which is the one decided by the scene shown by the
 # Obelisk last we looked.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -1461,14 +1462,14 @@ the tomb of some sort of ancient heroine - it must be the goal you
 have been looking for!
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Tomb of the crowned queen
 # We create all the tombs. These all teleport to the dark cell
 # except one which is the one decided by the scene shown by the
 # Obelisk last we looked.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -1505,14 +1506,14 @@ the tomb of some sort of ancient heroine - it must be the goal you
 have been looking for!
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Tomb of the shield
 # We create all the tombs. These all teleport to the dark cell
 # except one which is the one decided by the scene shown by the
 # Obelisk last we looked.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -1549,14 +1550,14 @@ the tomb of some sort of ancient heroine - it must be the goal you
 have been looking for!
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Tomb of the hero
 # We create all the tombs. These all teleport to the dark cell
 # except one which is the one decided by the scene shown by the
 # Obelisk last we looked.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -1593,7 +1594,7 @@ the tomb of some sort of ancient heroine - it must be the goal you
 have been looking for!
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # The ancient tomb
 #
@@ -1601,7 +1602,7 @@ have been looking for!
 # directly accessible from the Antechamber but you are
 # teleported here only if you solve the puzzle of the Obelisk.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
@@ -1637,18 +1638,18 @@ tomb_ex2 = create_object(exits.Exit, key="Exit tutorial",
 # before unlocking the exit.
 tomb_ex2.locks.add("view:tag(rack_sarcophagus, tutorial_world) ; traverse:tag(rack_sarcophagus, tutorial_world)")
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # The ancient tomb - Sarcophagus
 #
 # The sarcophagus is a "weapon rack" from which you can extract one
 # single weapon.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 tomb_sarcophagus = create_object(tutorial_world.objects.WeaponRack, 
                                  key="Stone sarcophagus", location=tomb,
-                                 aliases = ["sarcophagus", "stone"])
+                                 aliases=["sarcophagus", "stone"])
 
 # Returned by the 'look' command.
 tomb_sarcophagus.db.desc = ("""
@@ -1663,8 +1664,10 @@ The prize you have been looking for!
 """)
 
 corner_obelisk.attributes.add("rack_id", "rack_sarcophagus")
-corner_obelisk.attributes.add("available_weapons",
-["ornate longsword","warhammer","rune axe","thruning","slayer waraxe","ghostblade","hawkblade"])
+corner_obelisk.attributes.add("available_weapons", ["ornate longsword",
+                                                    "warhammer", "rune axe",
+                                                    "thruning", "slayer waraxe",
+                                                    "ghostblade", "hawkblade"])
 corner_obelisk.attributes.add("no_more_weapons_msg", """
 The tomb has already granted you all the might it will ever do.
 """)
@@ -1682,19 +1685,19 @@ against the castle guardian than any you might have found earlier) or
 you can choose to exit.|n
 """)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 # Outro - end of the tutorial
 #
 # This cleans all temporary attributes set on the Character
 # by the tutorial, removes weapons and items etc.
 #
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-exit.db.desc = ("""
+exitroom.db.desc = ("""
 |gThanks for trying out this little Evennia tutorial!
 
 
@@ -1714,18 +1717,16 @@ locks, so keep that in mind when checking functionality).|n
 """)
 
 # Returned by the 'tutorial' command.
-exit.attributes.add("tutorial_info", """
+exitroom.attributes.add("tutorial_info", """
 This room cleans up all temporary attributes and tags that were put
 on the character during the tutorial. Hope you enjoyed the play
 through!
 """)
 
 # we want to clear the weapon-rack ids on the character when exiting.
-exit.attributes.add("wracklist",
-["rack_barrel", "rack_sarcophagus"])
+exitroom.attributes.add("wracklist", ["rack_barrel", "rack_sarcophagus"])
 
 # EXITS
 
-exit_ex1 = create_object(exits.Exit, key="Exit Tutorial", aliases=["exit"], 
-                         location=exit, destination=caller.location)
-                         
+exitroom_ex1 = create_object(exits.Exit, key="Exit Tutorial", aliases=["exit"],
+                             location=exit, destination=caller.location)
