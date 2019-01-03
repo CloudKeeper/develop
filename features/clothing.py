@@ -1,5 +1,5 @@
 """
-Clothing
+Clothing - INOPERABLE
 
 Tim Ashley Jenkins 2017 Edited by Cloud_Keeper
 

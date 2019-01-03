@@ -1,5 +1,5 @@
 """
-Photography
+Photography - INOPERABLE
 
 Take an in-game photograph.
 

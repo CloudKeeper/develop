@@ -1,5 +1,5 @@
 """
-Party Management
+Party Management - INOPERABLE
 
 -Character Mixin
 -Party Handler

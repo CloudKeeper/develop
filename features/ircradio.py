@@ -1,5 +1,5 @@
 """
-IRC Puppet Bot.
+IRC Puppet Bot - INOPERABLE
 
 Cloud_Keeper 2017
 

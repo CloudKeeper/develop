@@ -1,5 +1,5 @@
 """
-Housing
+Housing - INOPERABLE
 
 -Character Mixin
 -Exit Obj

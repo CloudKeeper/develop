@@ -1,5 +1,5 @@
 """
-Wilderness system
+Wilderness system - INOPERABLE
 
 Evennia contrib - titeuf87 2017
 
