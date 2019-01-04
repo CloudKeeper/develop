@@ -1,10 +1,10 @@
 """
-Ambient Messages - INOPERABLE
+Ambient Messages - TO BE TESTED
 
 Cloud_Keeper
 
-This is a system for sending intermittent messages to a room to provide
-ambiance. 
+This is a system for sending intermittent messages to players within a room to
+provide ambiance.
 
 A series of Mixins, allows all objects to optionally hold messages which
 have a chance to be intermittently displayed to the objects around them.
@@ -14,60 +14,33 @@ By default:
     Characters return their own messages + the messages of worn clothing.
     Rooms return their own messages + the messages returned by their contents.
     
-A global script set at 30 second intervals determines which rooms have
-players in them and triggers an ambient message picked at random by the
-returned options.
+When a player enters a room, the room subscribes to a timer. When the interval
+has elapsed the room sends an ambient message to it's contents randomly chosen
+from the list returned by return_ambient_msgs()
 
+# -----------------------------------------------------------------------------
 NOTES:
-- Alternative to Script: Have rooms do it themselves. When a player enters
-    they subscribe to the ticker and remove subscription when player leaves.
 - Alternative to Mixinx: Have a central handler that deals with it all
+- Ambient messages be weighted
 
-    2.1 A room Mixin that subscribes to the ticker at an individual interval.
-        1.2 A Handler you can connect to your typeclass.
-
-self.db.ambientmsg is dictionary {"message": weight}
-If items(), keys(), values(),  iteritems(), iterkeys(), and  itervalues() are
-called with no intervening modifications to the dictionary, the lists will
-directly correspond: 3.x documentation.
-
-random.choices(population, weights=None, *, cum_weights=None, k=1)
+*If items(), keys(), values(),  iteritems(), iterkeys(), and  itervalues() are
+*called with no intervening modifications to the dictionary, the lists will
+*directly correspond: 3.x documentation.
+*random.choices(population, weights=None, *, cum_weights=None, k=1)
 
 TO DO:
--*EQUIPPABLE ITEMS HAVE THEIR OWN RETURN_ambient_msgs THAT APPENDS NAME ETC
--    def at_object_receive(self, moved_obj, source_location, **kwargs):
-        ""
-        If room recieves a player, and an ambience message is 15 seconds away,
-        send an ambience message in 5 seconds if still in the room.
-        ""
--Rooms could have an on/off switch that the script checks for.
-
-# STORING THE MESSAGES - METHOD 2 - Handler
-So that anything you attach the handler to will get full functionality.
-
-# SENDING THE MESSAGES - METHOD 2 - ON ROOMS
-class AmbientRoom(DefaultRoom):
-
-    def at_creation():
-        self.db.interval = #ANYTHING YOU WANT
-
-    def at_object_receive():
-        if moved_obj is Character & Character.account:
-            tickerhandler.add(self.db.interval, call_ambient_message,
-                      idstring="ticker1", persistent=True, *args, **kwargs)
-
-    def at_object_leave():
-        if no_other_players:
-            tickerhandler.remove(self.db.interval, call_ambient_message,
-                                idstring="ticker1")
-
-    def call_ambient_message():
-        get_ambient_messages
-        self.msg_contents(random(messages))
-
+-Rooms could have an on/off switch that the script checks for. If off,
+and player enters, it does not subscribe to ticker. If later turned on, it
+checks to see if player in room then subscribes to ticker and will work normally
+form then on.
+-Command to control Ambient messages
+-Messasges have Ambience tag
+# -----------------------------------------------------------------------------
 """
 
-from evennia import DefaultObject, DefaultCharacter, DefaultRoom, DefaultScript
+from evennia import DefaultObject, DefaultCharacter, DefaultRoom
+from evennia import TICKER_HANDLER as tickerhandler
+from random import random
 
 # -----------------------------------------------------------------------------
 # Ambient Message Storage
@@ -126,41 +99,62 @@ class AmbientRoom(DefaultRoom, AmbientObj):
     Database Attributes:
         ambient_msgs (dict): Dictionary of ambient messages and weighting.
     """
+    def at_object_creation(self):
+        """
+        Adds the ambient_msgs dictionary to the object.
+        Eg. self.db.ambient_msgs = {"The sun shines brightly": 1}
+        """
+        super(AmbientRoom, self).at_object_creation()
+        self.db.ambient_msgs = {}
+        self.db.ambient_interval = 30
+        self.db.connected_to_ticker = False
+
+    def at_object_receive(self, moved_obj, source_location, **kwargs):
+        """
+        Called after an object has been moved into this object.
+        Args:
+            moved_obj (Object): The object moved into this one
+            source_location (Object): Where `moved_object` came from.
+                Note that this could be `None`.
+            **kwargs (dict): Arbitrary, optional arguments for users
+                overriding the call (unused by default).
+        """
+        # If player enters and not already connected to the ticker. Do so.
+        if moved_obj.has_account and not self.db.connected_to_ticker:
+            tickerhandler.add(self.db.ambient_interval,
+                              self.display_ambient_msg(),
+                              persistent=True)
+            self.db.connected_to_ticker = True
+
+    def at_object_leave(self, moved_obj, target_location, **kwargs):
+        """
+        Called just before an object leaves from inside this object
+        Args:
+            moved_obj (Object): The object leaving
+            target_location (Object): Where `moved_obj` is going.
+            **kwargs (dict): Arbitrary, optional arguments for users
+                overriding the call (unused by default).
+        """
+        # If we no longer have players in the room. Turn off ticker.
+        if not [obj.has_account for obj in self.contents_get()]:
+            tickerhandler.remove(self.db.ambient_interval,
+                                 self.display_ambient_msg())
+            self.db.connected_to_ticker = False
+        pass
+
+    def display_ambient_msg(self):
+        """
+        Displays an ambient message selected at random from list returned by
+        return_ambient_msgs().
+        """
+        self.msg_contents(random(self.return_ambient_msgs))
 
     def return_ambient_msgs(self):
         """
-        Collects the ambient messages from room contents and 
+        Collects the ambient messages from room contents and
         adds them to the Rooms own messages.
         """
         ambient_msgs = self.db.ambient_msgs
         for obj in self.contents_get():
             ambient_msgs.update(obj.get("ambient_msgs", []))
         return ambient_msgs
-
-# -----------------------------------------------------------------------------
-# Ambient Message Triggers
-# -----------------------------------------------------------------------------
-
-
-class Ambiance(DefaultScript):
-    """
-    This is a Global Script. At each interval it collects a list of rooms
-    which contains players. It then displays an ambiance message to it's
-    contents selected from the messages returned by it's return_ambient_msgs
-    function.
-    """
-    def at_script_creation(self):
-        self.key = "ambiance_script"
-        self.desc = "Triggers ambient messages in rooms from contents."
-        self.interval = 30
-        self.persistent = True
-
-    def at_repeat(self):
-        """
-        Called every self.interval seconds.
-        """   
-        # get_list_of_players
-        # get_player_locations
-        # for room in player_locations:
-        #     messages = get_ambient_messages(room)
-        #     room.msg_contents(random(messages))

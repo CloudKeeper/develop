@@ -1,5 +1,5 @@
 """
-Ambient Messages - INOPERABLE
+Ambient Messages - TO BE TESTED
 
 Cloud_Keeper
 
@@ -18,56 +18,29 @@ A global script set at 30 second intervals determines which rooms have
 players in them and triggers an ambient message picked at random by the
 returned options.
 
+# -----------------------------------------------------------------------------
 NOTES:
-- Alternative to Script: Have rooms do it themselves. When a player enters
-    they subscribe to the ticker and remove subscription when player leaves.
 - Alternative to Mixinx: Have a central handler that deals with it all
+- Ambient messages be weighted
 
-    2.1 A room Mixin that subscribes to the ticker at an individual interval.
-        1.2 A Handler you can connect to your typeclass.
-
-self.db.ambientmsg is dictionary {"message": weight}
-If items(), keys(), values(),  iteritems(), iterkeys(), and  itervalues() are
-called with no intervening modifications to the dictionary, the lists will
-directly correspond: 3.x documentation.
-
-random.choices(population, weights=None, *, cum_weights=None, k=1)
+*If items(), keys(), values(),  iteritems(), iterkeys(), and  itervalues() are
+*called with no intervening modifications to the dictionary, the lists will
+*directly correspond: 3.x documentation.
+*random.choices(population, weights=None, *, cum_weights=None, k=1)
 
 TO DO:
--*EQUIPPABLE ITEMS HAVE THEIR OWN RETURN_ambient_msgs THAT APPENDS NAME ETC
--    def at_object_receive(self, moved_obj, source_location, **kwargs):
-        ""
-        If room recieves a player, and an ambience message is 15 seconds away,
-        send an ambience message in 5 seconds if still in the room.
-        ""
--Rooms could have an on/off switch that the script checks for.
-
-# STORING THE MESSAGES - METHOD 2 - Handler
-So that anything you attach the handler to will get full functionality.
-
-# SENDING THE MESSAGES - METHOD 2 - ON ROOMS
-class AmbientRoom(DefaultRoom):
-
-    def at_creation():
-        self.db.interval = #ANYTHING YOU WANT
-
-    def at_object_receive():
-        if moved_obj is Character & Character.account:
-            tickerhandler.add(self.db.interval, call_ambient_message,
-                      idstring="ticker1", persistent=True, *args, **kwargs)
-
-    def at_object_leave():
-        if no_other_players:
-            tickerhandler.remove(self.db.interval, call_ambient_message,
-                                idstring="ticker1")
-
-    def call_ambient_message():
-        get_ambient_messages
-        self.msg_contents(random(messages))
-
+-Rooms could have an on/off switch that the script checks for. If off,
+and player enters, it does not subscribe to ticker. If later turned on, it
+checks to see if player in room then subscribes to ticker and will work normally
+form then on.
+-Command to control Ambient messages
+-Messasges have Ambience tag
+# -----------------------------------------------------------------------------
 """
 
 from evennia import DefaultObject, DefaultCharacter, DefaultRoom, DefaultScript
+from evennia.server.sessionhandler import SESSIONS
+from random import random
 
 # -----------------------------------------------------------------------------
 # Ambient Message Storage
@@ -158,9 +131,15 @@ class Ambiance(DefaultScript):
     def at_repeat(self):
         """
         Called every self.interval seconds.
-        """   
-        # get_list_of_players
-        # get_player_locations
-        # for room in player_locations:
-        #     messages = get_ambient_messages(room)
-        #     room.msg_contents(random(messages))
+        """
+
+        # Get puppets with online players connected (and thus have a location)
+        online_chars = [session.puppet for session in SESSIONS
+                        if session.puppet]
+
+        # Get puppet locations with no repeats
+        inhabited_rooms = list(set([puppet.location for puppet in online_chars]))
+
+        # Message room with random ambient message
+        for room in inhabited_rooms:
+            room.msg_contents(random(room.return_ambient_msgs))
