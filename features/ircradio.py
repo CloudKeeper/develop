@@ -5,23 +5,31 @@ Cloud_Keeper 2018
 
 This connects an Evennia object to an IRC channel. This is achieved by having
 a bot (the Portal Bot) connect to IRC. The Portal Bot communicates what it
-hears to a bot (the Server Bot) inside Evennia. The Portal Bot then causes the
+hears to a bot (the Server Bot) inside Evennia. The Server Bot then causes the
 object to speak the IRC dialogue. This is a one way connection.
 
 IRC -> Portal Bot -> inputfuncs.bot_data_in -> Server Bot -> Radio Object
 
 This is meant as a simple one way version of an IRC bot.
 
+Instructions:
+    1. Ensure IRC is enabled in your games settings file.
+    2. Import the BotCmdSet to your character CmdSet.
+    3. @puppetbot <irc_network> <port> <#irchannel> <object_name>
+
+# -----------------------------------------------------------------------------
+NOTES:
+-Complete Command
+
+# -----------------------------------------------------------------------------
 """
-import time
+
 from django.conf import settings
 from evennia import CmdSet
 from evennia.accounts.bots import Bot
 from evennia.accounts.models import AccountDB
 from evennia.server.portal.irc import IRCBot, IRCBotFactory
 from evennia.utils import create, search, utils, ansi
-from typeclasses.characters import Character
-from typeclasses.objects import Object
 
 _DEFAULT_WIDTH = settings.CLIENT_DEFAULT_WIDTH
 
@@ -51,8 +59,6 @@ class PortalBot(IRCBot):
     for our current purposes so we simply inherit from it. If you need to
     extend or alter the Bot's behaviour you can overload it here.
 
-#TODO Add run down of message types
-
     For the full list of methods available refer to:
     https://github.com/twisted/twisted/blob/twisted-18.9.0/src/twisted/words/protocols/irc.py#L1099
     """
@@ -66,14 +72,15 @@ class PortalBot(IRCBot):
             msg (str): The message arriving from channel.
 
         """
+        # Respond to private messages with a little bit of information.
         if channel == self.nickname:
-            # private message
             user = user.split('!', 1)[0]
             pm_response = ("This is an Evennia IRC bot connecting from "
                            "'%s'." % settings.SERVERNAME)
             self.send_privmsg(pm_response, user=user)
+
+        # We pass regular channel messages to out Server Bot.
         elif not msg.startswith('***'):
-            # channel message
             user = user.split('!', 1)[0]
             user = ansi.raw(user)
             self.data_in(text=msg, type="msg", user=user, channel=channel)
@@ -106,6 +113,8 @@ class PortalBotFactory(IRCBotFactory):
 ##############################################################################
 #
 # InputFunc.bot_data_in (located at evennia\server\inputfunc.py)
+# Input Functions catch incoming messages from external to Evennia and handle
+# getting them to where they need to go inside of Evennia.
 # For information only, should not need to be edited.
 #
 ##############################################################################
@@ -217,8 +226,10 @@ class ServerBot(Bot):
     def execute_cmd(self, session=None, txt=None, **kwargs):
         """
         Route messages to our radio object. This is triggered by the
-        bot_data_in Inputfunc. Other forms of input (join msgs etc) are ignored.
-#TODO
+        bot_data_in Inputfunc. For our purposes we are only worried about
+        channel messages and actoins. Other forms of input (join msgs etc)
+        are ignored.
+
         Args:
             session (Session, optional): Session responsible for this command.
                 Note that this is the bot.
@@ -226,8 +237,11 @@ class ServerBot(Bot):
         Kwargs:
             user (str): The name of the user who sent the message.
             channel (str): The name of channel the message was sent to.
-            type (str): Nature of message. Either 'msg', 'action', 'nicklist'
-                or 'ping'.
+            type (str): Nature of message. Either:-
+                        'msg' - Message sent to connected channel by a user.
+                        'action' - An IRC /me message
+                        'nicklist' - List of users in IRC channel
+                        'ping'. - Testing the channel connectivity
             nicklist (list, optional): Set if `type='nicklist'`. This is a list
                 of nicks returned by calling the `self.get_nicklist`. It must
                 look for a list `self._nicklist_callers` which will contain all
@@ -237,44 +251,41 @@ class ServerBot(Bot):
                 return must look for a list `self._ping_callers` which will
                 contain all callers waiting for the ping return.
         """
-        if kwargs["type"] == "ping":
-            # the return of a ping
-            if hasattr(self, "_ping_callers") and self._ping_callers:
-                chstr = "%s (%s:%s)" % (self.db.irc_channel, self.db.irc_network, self.db.irc_port)
-                for obj in self._ping_callers:
-                    obj.msg("IRC ping return from %s took %ss." % (chstr, kwargs["timing"]))
-                self._ping_callers = []
-            return
+        # Our radio object has been deleted (Returns None). Destroy self.
+        if not self.db.ev_object:
+            self.delete()
 
-        else:
-            # something to send to the main channel
+        # Cache object reference - Saves checking DB every message.
+        if not self.ndb.ev_object and self.db.ev_object:
+            self.ndb.ev_object = self.db.ev_object
+
+        if self.ndb.ev_object:
             if kwargs["type"] == "action":
                 # An action (irc pose)
-                text = "%s@%s %s" % (kwargs["user"], kwargs["channel"], txt)
-            else:
-                # msg - A normal channel message
-                text = "%s@%s: %s" % (kwargs["user"], kwargs["channel"], txt)
-
-            if not self.ndb.ev_object and self.db.ev_object:
-                # cache channel lookup
-                self.ndb.ev_object = self.db.ev_object
-            if self.ndb.ev_object:
+                text = "%s-%s@%s %s" % (self.ndb.ev_object.key, kwargs["user"],
+                                        kwargs["channel"], txt)
                 self.ndb.ev_object.location.msg_contents(
-                    text=(text,
-                    {"type": "irc"}),
-                    from_obj=self.ndb.ev_object)
+                    text=(text, {"type": "irc"}), from_obj=self.ndb.ev_object)
+
+            if kwargs["msg"] == "action":
+                # msg - A normal channel message
+                text = "%s-%s@%s: %s" % (self.ndb.ev_object.key, kwargs["user"],
+                                         kwargs["channel"], txt)
+                self.ndb.ev_object.location.msg_contents(
+                    text=(text, {"type": "irc"}), from_obj=self.ndb.ev_object)
 
 ##############################################################################
 #
 # Radio Object
 # We are simply using the object for it's location. This can be any object
-# Specified by the IRCRadio command
+# Specified by the IRCRadio command. The Bot will delete itself if it finds
+# our radio object has been deleted.
 #
 ##############################################################################
 
 ##############################################################################
 #
-# Server Bot
+# IRCRadio Command
 #
 ##############################################################################
 
@@ -290,10 +301,13 @@ class BotCmdSet(CmdSet):
 
 class CmdPuppetBot(COMMAND_DEFAULT_CLASS):
     """
+    Link an Evennia object to an external IRC channel.
+    The location of the object will be used to send IRC messages to
+    object.location.msg_contents()
 
     """
 
-    key = "@puppetbot"
+    key = "@ircradio"
     locks = "cmd:serversetting(IRC_ENABLED) and pperm(Immortals)"
     help_category = "Comms"
 
@@ -305,29 +319,9 @@ class CmdPuppetBot(COMMAND_DEFAULT_CLASS):
             self.msg(string)
             return
 
-        # If no args: list bots.
+        # If no args direct to help.
         if not self.args:
-            # show all connections
-            ircbots = [bot for bot in
-                       AccountDB.objects.filter(db_is_bot=True,
-                                               username__startswith="ircbot-")]
-            if ircbots:
-                from evennia.utils.evtable import EvTable
-                table = EvTable("|w#dbref|n", "|wbotname|n",
-                                "|wev-channel/location|n",
-                                "|wirc-channel|n", "|wSSL|n",
-                                maxwidth=_DEFAULT_WIDTH)
-                for ircbot in ircbots:
-                    ircinfo = "%s (%s:%s)" % (
-                        ircbot.db.irc_channel, ircbot.db.irc_network,
-                        ircbot.db.irc_port)
-                    table.add_row("#%i" % ircbot.id, ircbot.db.irc_botname,
-                                  ircbot.attributes.get("ev_channel", ircbot.db.ev_location.key),
-                                  ircinfo, ircbot.db.irc_ssl)
-                self.msg(table)
-                self.msg("Use 'help @puppetbot' for more infomation.")
-            else:
-                self.msg("No irc bots found.")
+            self.msg("Use 'Help @ircradio' for instructions.")
             return
 
         # Switch options available only if valid bot is given.
@@ -342,73 +336,11 @@ class CmdPuppetBot(COMMAND_DEFAULT_CLASS):
                 self.msg("No valid bot given. Consult 'help @puppetbot'")
                 return
 
-            # Puppetbot/delete <bot> - Delete bot.
-            if any(i in ['disconnect', 'remove', 'delete'] for i in self.switches):
-                matches[0].delete()
-                self.msg("IRC link/bot destroyed.")
-                return
-
-            # Puppetbot/ping <bot> - ping bot.
-            if "ping" in self.switches:
-                matches[0].ping(self.caller)
-                self.msg("Pinging " + self.lhs)
-                return
-
-            # Puppetbot/about <bot> = msg - Set bot about message.
-            if "about" in self.switches:
-                if self.rhs:
-                    matches[0].db.botdesc = self.rhs
-                    self.msg("Bot about message changed to: " + self.rhs)
-                else:
-                    self.msg("No message given. 'About' desc change aborted.")
-                return
-
-            # Puppetbot/who <bot> - Get IRC user list..
-            if "who" in self.switches:
-                # retrieve user list. The bot must handles the echo since it's
-                # an asynchronous call.
-                self.caller.msg("Requesting nicklist from %s (%s:%s)." % (
-                                matches[0].db.irc_channel,
-                                matches[0].db.irc_network,
-                                matches[0].db.irc_port))
-                matches[0].get_nicklist(self.caller)
-                return
-
             # Puppetbot/reconnect <bot> - reconnect bot.
             if "reconnect" in self.switches:
                 matches[0].reconnect()
                 self.msg("Reconnecting " + self.lhs)
                 return
-
-            # Puppetbot/reload <bot> - Delete all bots, recreates bots from new user list.
-            if "reload" in self.switches:
-                matches[0].db.ev_location.msg_contents("Puppet reload in progress.")
-                puppetlist = [puppet for puppet in search.search_tag(matches[0].key + "-puppet")]
-                for puppet in puppetlist:
-                    puppet.delete()
-                matches[0].get_nicklist()
-                return
-
-            # Puppetbot/ignore <bot> = puppet - Toggle ignore IRC user.
-            if "ignore" in self.switches:
-                if self.rhs:
-                    user = self.rhs.strip()
-                    # If already ignored, toggle off.
-                    if user in matches[0].db.userignorelist:
-                        matches[0].db.userignorelist.remove(user)
-                        matches[0].get_nicklist()
-                        return
-
-                    # Else ignore user.
-                    else:
-                        matches[0].db.userignorelist.append(user)
-                        if user in matches[0].db.puppetdict:
-                            matches[0].db.puppetdict[user].delete()
-                            del matches[0].db.puppetdict[user]
-                        return
-                else:
-                    self.msg("Usage: Puppetbot/ignore <bot> = <puppet>")
-                    return
 
         # Create Bot.
         location = self.caller.location
