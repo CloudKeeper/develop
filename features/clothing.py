@@ -1,6 +1,72 @@
 """
 Clothing - INOPERABLE
 
+Summary:
+
+Processes:
+CmdInventory:
+For loop of contents.
+Puts worn in one list
+Puts others in another list.
+Displays it.
+
+CmdLook self:
+For loop of contents:
+Puts worn items in list.
+Orders list
+For loop of list:
+For item, put name[+style] in list.
+Displays it.
+
+CmdWear Clothing:
+Get item.
+Check if clothing.
+Within overall limit.
+Within type limit.
+Check already worn.
+If style given, check word limit.
+Clothing.wear(caller,style)
+Cloth.db.worn = Style
+Auto cover clothes
+
+CmdRemove Clothing:
+Get Item.
+Check if worn.
+Stop if covered.
+Clothing.remove()
+Go through contents.
+Remove clothing.covered_by of each
+
+Attributes and methods added/changed.
+Commands:
+        self.add(CmdWear())
+        self.add(CmdRemove())
+        self.add(CmdCover())
+        self.add(CmdUncover())
+        self.add(CmdGive())
+        self.add(CmdDrop())
+        self.add(CmdInventory())
+
+Character:
+Return Appearance()
+
+Clothing:
+Self.db.worn = True or “string”
+Wear()
+Remove()
+
+File:
+Wearstyle limit
+Clothing order
+Clothing type limit
+Total clothing limit
+Can’t cover types
+
+Critique
+
+A lot of things hard coded in the file.
+
+
 Tim Ashley Jenkins 2017 Edited by Cloud_Keeper
 
 Provides a typeclass and commands for wearable clothing.

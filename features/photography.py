@@ -1,5 +1,5 @@
 """
-Photography - INOPERABLE
+Photography - TO BE TESTED
 
 Take an in-game photograph.
 
@@ -20,16 +20,15 @@ Usage - In-game:
     @create camera:features.photography.Camera
     selfie
 
-"""
-
-"""
+# -----------------------------------------------------------------------------
 NOTES:
 Photo Valuer:
 -Pokemon emotes messages have a value attached to them stored on photo.
 -Locations have a value stored on the location -No point of reference on emote.
 -Value of photo determined by factors including those values.
-
+# -----------------------------------------------------------------------------
 """
+
 import time
 from django.conf import settings
 from evennia.utils import utils, evmenu
@@ -41,9 +40,10 @@ COMMAND_DEFAULT_CLASS = utils.class_from_module(settings.COMMAND_DEFAULT_CLASS)
 
 _TGT_ERRMSG = "'{}' could not be located."
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Camera Object - Creates photographs when used.
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+
 
 class Camera(Object):
 
@@ -68,9 +68,10 @@ class Camera(Object):
         character.location.msg_contents(character.key 
                                         + " snapped a photograph!")
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Camera Commands - Calls the camera.use_object() function
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+
 
 class CameraCmdSet(CmdSet):
     """
@@ -112,9 +113,10 @@ class CmdPhotograph(COMMAND_DEFAULT_CLASS):
 
         self.obj.use_object(self.caller, subjectlist)
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Photograph Object - Uses menus to mimic location when photograph taken.
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+
 
 class Photograph(Object):
 
@@ -131,9 +133,11 @@ class Photograph(Object):
                       current_state="")
         return ""
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Photograph Menu - Look through objects and descriptions.
-#------------------------------------------------------------------------------
+# --------
+# ----------------------------------------------------------------------
+
 
 def photograph_node_formatter(nodetext, optionstext, caller=None):
     """
@@ -150,6 +154,7 @@ def photograph_options_formattter(optionlist, caller=None):
         return ""
 
     return "You see: " + ", ".join([key for key, msg in optionlist])
+
 
 def photograph_node(caller, input_string):
     menu = caller.ndb._menutree

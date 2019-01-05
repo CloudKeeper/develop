@@ -1,6 +1,98 @@
 """
 Wilderness system - INOPERABLE
 
+Summary
+
+Processes:
+
+Create Wilderness
+@py from evennia.contrib import wilderness; wilderness.create_wilderness()
+
+Checks name, no doubles.
+Checks map provider or uses default
+Create_script(Wildernessscript)
+Assigns mapprovider
+
+At_script_creation()
+Gives base variables
+At_Start()
+Re-instate room variables
+Clean ghost items in itemlist.
+
+Enter Wilderness
+@py from evennia.contrib import wilderness; wilderness.enter_wilderness(me, coordinates=(4, 1), name=”default”)
+
+Check wilderness exists
+If valid coordinates()
+Move_obj()
+
+Script.Is_valid_coordinates()
+Mapprovider.is_valid_coordinates()
+Custom code returns true
+
+Script.Move_obj()
+Update script dict of objs and coordinates.
+Remove objs location
+
+If room exists in coord send to room
+If room doesn’t exist
+If old room is wilderness room use
+If not, or someone in it, create new
+
+Set objs location to new room.
+Set rooms coordinates.
+Give room reference to script.
+
+Leave Wilderness
+?
+
+Create Room
+If there are unused rooms, use that.
+Else
+Create room
+Create exits (has list of all directions)
+
+Moving
+class WildernessExit(DefaultExit):
+def at_traverse(self, traversing_object, target_location):
+    Calls script.move_obj()
+
+
+
+Attributes and methods:
+Objects
+
+Wilderness Script:
+Itemcoodinates = {}
+Rooms = {}
+Unused_rooms = {}
+
+Character:
+
+Rooms:
+Ndb.Wildernessscript = script
+Ndb.Active_coordinates = (0,0)
+
+File:
+Create_wilderness()
+Enter_wilderness()
+Get_new_coordinates()
+
+
+Critique:
+
+Map provider extendability does allow definition of valid coordinates, location
+name and descriptions of rooms.
+
+Does it allow putting a custom room at that location.
+
+It can have an exit send you the the wilderness but you would overrivde the exits
+at_traverse. Is this better than just seeting the wilderness to location.
+
+Doesn’t allow custom exits
+
+
+
 Evennia contrib - titeuf87 2017
 
 This contrib provides a wilderness map. This is an area that can be huge where
