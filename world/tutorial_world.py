@@ -546,7 +546,7 @@ osinn_ex2 = create_object(exits.Exit, key="enter", aliases=["in"],
 # -----------------------------------------------------------------------------
 
 # Returned by the 'look' command.
-evinn.db.desc = ("""
+evinn.db.desc = ("""\
 The Evennia Inn consists of one large room filled with
 tables. The bardisk extends along the east wall, where multiple
 barrels and bottles line the shelves. The barkeep seems busy handing
@@ -561,17 +561,17 @@ sticking out. There is a sign next to it: |wFree to take|n. A patron
 tells you cheerfully that it's the leftovers from those foolish
 adventurers that challenged the old ruin before you ...
 
-(to get a weapon from the barrel, use |wget weapon|n)
+(to get a weapon from the barrel, use |wget weapon|n)\
 """)
 
 # Details returned by extended 'look' command.
 evinn.db.details = {}
 
-desc = """
+desc = """\
 The landlord is a cheerful fellow, always ready to supply you with
 more beer. He mentions doing some sort of arcane magic known as
 "software development" when not running this place. Whatever that
-means.
+means.\
 """
 evinn.db.details["barkeep"] = desc
 evinn.db.details["man"] = desc
@@ -600,16 +600,16 @@ evinn_barrel = create_object(tutorial_world.objects.WeaponRack, key="barrel",
                              location=evinn)
 
 # Returned by 'look' command.
-evinn_barrel.db.desc = ("""
+evinn_barrel.db.desc = ("""\
 This barrel has the air of leftovers - it contains an assorted
-mess of random weaponry in various states and qualities.
+mess of random weaponry in various states and qualities.\
 """)
 
 # Prevent from picking up with nice error message.
 evinn_barrel.locks.add("get:false()")
-evinn_barrel.attributes.add("get_err_msg", """
+evinn_barrel.attributes.add("get_err_msg", """\
 The barrel is weighed down with random weaponry. This might be the wrong place
-to start your weight lifting career.
+to start your weight lifting career.\
 """)
 
 # Here we set a number of values used by the custom 'get weapon' command.
@@ -639,10 +639,10 @@ adventurers coming through here. One weapon per person only.'
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-bridge.db.desc = ("""
+bridge.db.desc = ("""\
 The hanging bridge's foundation sits at the edge of the cliff to the
 east - two heavy stone pillars anchor the bridge on this side. The
-bridge sways precariously in the storm.
+bridge sways precariously in the storm.\
 """)
 
 # Returned by the 'tutorial' command.
@@ -686,40 +686,40 @@ bridge.attributes.add("fall_exit", "tut#06")
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-ledge.db.desc = ("""
+ledge.db.desc = ("""\
 You are on a narrow ledge protruding from the side of the cliff,
 about halfway down.  The air is saturated with salty sea water,
 sprays hitting your face from the crashing waves |wbelow|n.
 
 The ledge is covered with a few black-grey brushes. Not far from you
 the cliff-face is broken down to reveal a narrow natural opening into
-the cliff. High above you the |wbridge|n sways and creaks in the wind.
+the cliff. High above you the |wbridge|n sways and creaks in the wind.\
 """)
 
 # Details returned by extended 'look' command.
 ledge.db.details = {}
 
-desc = """
+desc = """\
 The brushes covering the ledge are gray and dwarfed from constantly
-being pummeled by salt, rain and wind.
+being pummeled by salt, rain and wind.\
 """
 ledge.db.details["brush"] = desc
 ledge.db.details["brushes"] = desc
 
-desc = """
+desc = """\
 Below you the gray sea rages, its waves crashing into the cliff so a
 thin mist of salt mixes with the rain even this far above it. You can
-almost imagine the cliff trembling under its onslaught.
+almost imagine the cliff trembling under its onslaught.\
 """
 ledge.db.details["below"] = desc
 ledge.db.details["sea"] = desc
 ledge.db.details["ocean"] = desc
 ledge.db.details["waves"] = desc
 
-desc = """
+desc = """\
 Partly obscured by the rain you can make out the shape of the hanging
 bridge high above you. There is no way to get back up there from this
-ledge.
+ledge.\
 """
 ledge.db.details["bridge"] = desc
 
@@ -737,10 +737,10 @@ depending on what happens on the bridge.
 ledge_ex1 = create_object(exits.Exit, key="hole into cliff", 
                           aliases=["hole", "passage", "cliff"], 
                           location=ledge, destination=underground)
-ledge_ex1.db.desc = ("""
+ledge_ex1.db.desc = ("""\
 The hole is natural, the soft rock eroded by ages of sea water. The
 opening is small but large enough for you to push through. It looks
-like it expands into a cavern further in.
+like it expands into a cavern further in.\
 """)
 
 # -----------------------------------------------------------------------------
@@ -755,7 +755,7 @@ like it expands into a cavern further in.
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-underground.db.desc = ("""
+underground.db.desc = ("""\
 The underground cavern system you have entered seems to stretch on
 forever, with criss-crossing paths and natural caverns probably
 carved by water. It is not completely dark, here and there faint
@@ -771,37 +771,37 @@ water. In it sits a murky bucket, the first remnant of any sort of
 intelligent life down here. The bucket has disconnected from a chain
 hanging down from a circular opening high above. Gray daylight
 simmers down the hole together with rain that ripples the black
-surface of the pool.
+surface of the pool.\
 """)
 
 # Details returned by extended 'look' command.
 underground.db.details = {}
 
-desc = """
+desc = """\
 The water of the pool is black and opaque. The rain coming down from
-above does not seem to ripple the surface quite as much as it should.
+above does not seem to ripple the surface quite as much as it should.\
 """
 underground.db.details["pool"] = desc
 underground.db.details["water"] = desc
 
-desc = """
+desc = """\
 The bucket is nearly coming apart, only rusty iron bands holding
-the rotten wood together. It's been down here for a long time.
+the rotten wood together. It's been down here for a long time.\
 """
 underground.db.details["bucket"] = desc
 
-desc = """
+desc = """\
 Whereas the lower edges of the hole seem jagged and natural you can
 faintly make out it turning into a man-made circular shaft higher up.
 It looks like an old well. There must have been much more water
-here once.
+here once.\
 """
 underground.db.details["hole"] = desc
 underground.db.details["above"] = desc
 
-desc = """
+desc = """\
 Those dark passages seem to criss-cross the cliff. No need to
-head back into the gloom now that there seems to be a way out.
+head back into the gloom now that there seems to be a way out.\
 """
 underground.db.details["passages"] = desc
 underground.db.details["dark"] = desc
@@ -819,10 +819,10 @@ start again, regardless of how you got here.
 underground_ex1 = create_object(exits.Exit, key="climb the chain", 
                                 aliases=["climb", "chain"],
                                 location=underground, destination=cliff)
-underground_ex1.db.desc = ("""
+underground_ex1.db.desc = ("""\
 The chain is made of iron. It is rusty but you think it might still
 hold your weight even after all this time. Better hope you don't need
-to do this more times ...
+to do this more times ...\
 """)
 
 # -----------------------------------------------------------------------------
@@ -835,7 +835,7 @@ to do this more times ...
 
 # Returned by the 'look' command.
 # The desc is only seen if the player first finds a light source.
-cell.db.desc = ("""
+cell.db.desc = ("""\
 |YThe |yflickering light|Y of your makeshift light reveals a small square
 cell. It does not seem like you are still in the castle, for the
 stone of the walls are chiseled crudely and drip with water and mold.
@@ -845,26 +845,26 @@ lichen it seems very sturdy. In a corner lies what might have once
 been a bed or a bench but is now nothing more than a pile of splinters,
 one of which you are using for light. One of the walls is covered with a
 thick cover of black roots having broken through the cracks from the
-outside.|n
+outside.|n\
 """)
 
 # Details returned by extended 'look' command.
 cell.db.details = {}
 
-desc = """
+desc = """\
 The door is very solid and clad in iron. No matter how much you push
 at it, it won't budge. It actually doesn't show any signs of having
-been opened for a very long time.
+been opened for a very long time.\
 """
 cell.db.details["iron-cast door"] = desc
 cell.db.details["iron"] = desc
 cell.db.details["door"] = desc
 cell.db.details["iron-cast"] = desc
 
-desc = """
+desc = """\
 The walls are dripping with moisture and mold. A network of roots
 have burst through the cracks on one side, bending the stones
-slightly aside. You feel a faint draft from that direction.
+slightly aside. You feel a faint draft from that direction.\
 """
 cell.db.details["stone walls"] = desc
 cell.db.details["walls"] = desc
@@ -898,10 +898,10 @@ cell_wall = create_object(tutorial_world.objects.CrumblingWall,
 # (the crumbling wall describes itself, so we don't do it here)
 
 # Returned by the 'tutorial' command.
-cell_wall.attributes.add("tutorial_info", """
+cell_wall.attributes.add("tutorial_info", """\
 This room presents a puzzle that has to be solved in order to get out
 of the room. The root-covered wall is in fact an advanced Exit-type
-object that is locked until the puzzle is solved.
+object that is locked until the puzzle is solved.\
 """)
 
 # Prevent from picking up.
@@ -926,7 +926,7 @@ cell_wall.attributes.add("destination", underground)
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-gate.db.desc = ("""
+gate.db.desc = ("""\
 The old gatehouse is near collapse. Part of its northern wall has
 already fallen down, together with parts of the fortifications in
 that direction.  Heavy stone pillars hold up sections of ceiling, but
@@ -936,15 +936,15 @@ sprawled over the ground together with most of its frame.
 
 |wEast|n the gatehouse leads out to a small open area surrounded by
 the remains of the castle.  There is also a standing archway
-offering passage to a path along the old |wsouth|nern inner wall.
+offering passage to a path along the old |wsouth|nern inner wall.\
 """)
 
 # Details returned by extended 'look' command.
 gate.db.details = {}
 
-desc = """
+desc = """\
 This heavy iron grating used to block off the inner part of the gate house, now it has fallen
-to the ground together with the stone archway that once help it up.
+to the ground together with the stone archway that once help it up.\
 """
 gate.db.details["portoculis"] = desc
 gate.db.details["fall"] = desc
@@ -992,7 +992,7 @@ gate_ex3.db.desc = ("""
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-innerwall.db.desc = ("""
+innerwall.db.desc = ("""\
 What appears at first sight to be a series of connected rooms
 actually turns out to be collapsed buildings so mashed together by
 the ravages of time that they all seem to lean on each other and
@@ -1001,7 +1001,7 @@ against the outer wall. The whole scene is directly open to the sky.
 The buildings make a half-circle along the main wall, here and there
 broken by falling stone and rubble. At one end (the |wnorth|nern) of
 this half-circle is the entrance to the castle, the ruined
-gatehoue. |wEast|nwards from here is some sort of open courtyard.
+gatehoue. |wEast|nwards from here is some sort of open courtyard.\
 """)
 
 # Returned by the 'tutorial' command.
@@ -1033,7 +1033,7 @@ innerwall_ex2 = create_object(exits.Exit, key="overgrown courtyard",
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-corner.db.desc = ("""
+corner.db.desc = ("""\
 The ruins opens up to the sky in a small open area, lined by
 columns. The open area is dominated by a huge stone |wobelisk|n in its
 center, an ancient ornament miraculously still standing.
@@ -1042,7 +1042,7 @@ Previously one could probably continue past the obelisk and eastward
 into the castle keep itself, but that way is now completely blocked
 by fallen rubble. To the |wwest|n is the gatehouse and entrance to
 the castle, whereas |wsouth|nwards the collumns make way for a wide
-open courtyard.
+open courtyard.\
 """)
 
 # Returned by the 'tutorial' command.
@@ -1106,52 +1106,53 @@ corner_mob.attributes.add("get_err_msg", """
 Your fingers just pass straight through it!
 """)
 
-corner_mob.attributes.add("desc_alive", """
+corner_mob.attributes.add("desc_alive", """\
 This ghostly shape could momentarily be mistaken for a thick fog had
 it not moved with such determination and giving echoing hollow
 screams as it did. The shape is hard to determine, now and then it
 seems to form limbs and even faces that fade away only moments
 later. The thing reeks of almost tangible spite at your
-presence. This must be the ruin's eternal guardian.
+presence. This must be the ruin's eternal guardian.\
 """)
 
-corner_mob.attributes.add("desc_dead", """
+corner_mob.attributes.add("desc_dead", """\
 The ghostly apparition is nothing but a howling on the wind, an eternal
 cold spot that can never be fully eradicated from these walls. While harmless
 in this state, there is no doubt that it shall eventually return to this plane
-to continue its endless haunting.
+to continue its endless haunting.\
 """)
 
 # We set the ghost to send defeated enemies to the Dark Cell
 corner_mob.attributes.add("send_defeated_to", cell)
 
-corner_mob.attributes.add("defeat_msg", """
+corner_mob.attributes.add("defeat_msg", """\
 You fall to the ground, defeated. As you do, the ghostly apparition dives
 forward and engulf you.
 
 
-The world turns black.
+The world turns black.\
 """)
 
-corner_mob.attributes.add("defeat_msg_room", """
+corner_mob.attributes.add("defeat_msg_room", """\
 %s falls to the ground, defeated. For a moment their fallen form is
 engulfed by the swirling mists of the ghostly apparition. When they
-raise lift, the ground is empty!
+raise lift, the ground is empty!\
 """)
 
-corner_mob.attributes.add("weapon_ineffective_msg", """
-Your weapon just passes through the swirling mist of the ghostly apparition, causing no effect!
+corner_mob.attributes.add("weapon_ineffective_msg", """\
+Your weapon just passes through the swirling mist of the ghostly apparition, \
+causing no effect!\
 """)
 
-corner_mob.attributes.add("hit_msg", """
-The ghostly apparition howls and writhes, shifts and shivers.
+corner_mob.attributes.add("hit_msg", """\
+The ghostly apparition howls and writhes, shifts and shivers.\
 """)
 
-corner_mob.attributes.add("death_msg", """
+corner_mob.attributes.add("death_msg", """\
 After the last strike, the ghostly apparition seems to collapse
 inwards. It fades and becomes one with the mist. Its howls rise to a
 ear-shattering crescendo before quickly fading away to be nothing more
-than the lonely cries of the cold, salty wind.
+than the lonely cries of the cold, salty wind.\
 """)
 
 # Give the enemy some random echoes (echoed at irregular intervals)
@@ -1185,7 +1186,7 @@ corner_mob.set_alive()
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-courtyard.db.desc = ("""
+courtyard.db.desc = ("""\
 The inner courtyard of the old castle is littered with debris and
 overgrown with low grass and patches of thorny vines. There is a
 collapsed structure close to the gatehouse that looks like a stable.
@@ -1195,7 +1196,7 @@ a large obelisk-like thing. To the |wwest|n the castle walls loom
 over a mess of collapsed buildings. On the opposite, |weast|nern side
 of the yard is a large building with a curved roof that seem to have
 withstood the test of time better than many of those around it, it
-looks like some sort of temple.
+looks like some sort of temple.\
 """)
 
 # Details returned by extended 'look' command.
@@ -1209,14 +1210,14 @@ courtyard.db.details["stable"] = desc
 courtyard.db.details["building"] = desc
 
 # Returned by the 'tutorial' command.
-courtyard.attributes.add("tutorial_info", """
+courtyard.attributes.add("tutorial_info", """\
 This is part of a four-room area patrolled by a mob; the guardian of
 the castle. The mob initiates combat if the player stays in the same
 room for long enough.
 
 Combat itself is a very simple affair which takes advantage of the
 strength of the weapon you use, but dictates a fixed skill for you and
-your enemy.
+your enemy.\
 """)
 
 # EXITS
@@ -1240,7 +1241,7 @@ courtyard_ex3 = create_object(exits.Exit, key="ruined temple",
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-temple.db.desc = ("""
+temple.db.desc = ("""\
 This building seems to have survived the ravages of time better than
 most of the others. Its arched roof and wide spaces suggests that
 this is a temple or church of some kind.
@@ -1252,20 +1253,20 @@ condition, the temple is empty of all furniture or valuables, like it
 was looted or its treasures moved ages ago.
 
 Stairs lead down to the temple's dungeon on either side of the
-altar. A gaping door opening shows the a wide courtyard to the west.
+altar. A gaping door opening shows the a wide courtyard to the west.\
 """)
 
 # Details returned by extended 'look' command.
 temple.db.details = {}
 
-desc = """
+desc = """\
 The altar is a massive stone slab. It might once have had ornate decorations
-but time and the salty air has broken everything down into dust.
+but time and the salty air has broken everything down into dust.\
 """
 temple.db.details["altar"] = desc
 
-desc = """
-The dome still looming intact above you is a marvel of engineering.
+desc = """\
+The dome still looming intact above you is a marvel of engineering.\
 """
 temple.db.details["ceiling"] = desc
 
@@ -1294,7 +1295,7 @@ temple_ex2.locks.add("traverse:has_account()")
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-antechamber.db.desc = ("""
+antechamber.db.desc = ("""\
 This chamber lies almost directly under the main altar of the
 temple. The passage of aeons is felt here and you also sense you are
 close to great power.
@@ -1303,7 +1304,7 @@ The sides of the chamber are lined with stone archways, these are
 entrances to the |wtombs|n of what must have been influential
 families or individual heroes of the realm. Each is adorned by a
 stone statue or symbol of fine make. They do not seem to be ordered
-in any particular order or rank.
+in any particular order or rank.\
 """)
 
 # Returned by the 'tutorial' command.
@@ -1322,7 +1323,8 @@ teleports to the Ancient Tomb treasure chamber.
 
 # EXITS
 
-antechamber_ex1 = create_object(exits.Exit, key="up the stairs to ruined temple", 
+antechamber_ex1 = create_object(exits.Exit,
+                                key="up the stairs to ruined temple",
                                 aliases=["stairs", "temple", "up", "u"],
                                 location=antechamber, destination=temple)
 antechamber_ex2 = create_object(exits.Exit, key="Blue bird tomb", 
@@ -1335,40 +1337,40 @@ The entrance to this tomb is decorated with a very lifelike blue bird.
 antechamber_ex3 = create_object(exits.Exit, key="Tomb of woman on horse", 
                                 aliases=["horse", "riding"],
                                 location=antechamber, destination=horse)
-antechamber_ex3.db.desc = ("""
+antechamber_ex3.db.desc = ("""\
 The entrance to this tomb depicts a scene of a strong warrior woman on a black
 horse. She shouts and brandishes a glowing weapon as she charges down a hill 
-towards some enemy not depicted.
+towards some enemy not depicted.\
 """)
 
 antechamber_ex4 = create_object(exits.Exit, key="Tomb of the crowned queen", 
                                 aliases=["crown", "queen"],
                                 location=antechamber, destination=crown)
-antechamber_ex4.db.desc = ("""
+antechamber_ex4.db.desc = ("""\
 The entrance to this tomb shows a beautiful mural of a queen ruling
 from her throne, respectful subjects kneeling before her. On her head
-is a crown that seems to shine with magical power.
+is a crown that seems to shine with magical power.\
 """)
 
 antechamber_ex5 = create_object(exits.Exit, key="Tomb of the shield", 
                                 aliases=["shield"],
                                 location=antechamber, destination=shield)
-antechamber_ex5.db.desc = ("""
+antechamber_ex5.db.desc = ("""\
 This tomb shows a warrior woman fighting shadowy creatures from the
 top of a hill. Her sword lies broken on the ground before her but she
 fights on with her battered shield - the scene depicts her just as she
-rams the shield into an enemy in wild desperation.
+rams the shield into an enemy in wild desperation.\
 """)
 
 antechamber_ex6 = create_object(exits.Exit, key="Tomb of the hero", 
                                 aliases=["knight", "hero", "monster", "beast"],
                                 location=antechamber, destination=hero)
-antechamber_ex6.db.desc = ("""
+antechamber_ex6.db.desc = ("""\
 The entrance to this tomb shows a mural of an aging woman in a
 warrior's outfit. She has white hair yet her sword-arm shows no sign
 of weakness and her pose is straight. Children are gathered around her
 feet and men and women from all the land come to seek the wisdom and
-strength of the legendary hero.
+strength of the legendary hero.\
 """)
 
 
@@ -1387,33 +1389,30 @@ bird.attributes.add("puzzle_value", "0")
 bird.attributes.add("failure_teleport_to", cell)
 bird.attributes.add("success_teleport_to", tomb)
 
-bird.attributes.add("failure_teleport_msg", """
+bird.attributes.add("failure_teleport_msg", """\
 The tomb is dark. You fumble your way through it. You think you can
 make out a coffin in front of you in the gloom.
-
 
 |rSuddenly you hear a distinct 'click' and the ground abruptly
 disappears under your feet! You fall ... things go dark. |n
 
-
 ...
-
 
 ... You come to your senses. You lie down. On stone floor. You
 shakily come to your feet. Somehow you suspect that you are not under
 the tomb anymore, like you were magically snatched away.
 
-The air is damp. Where are you?
+The air is damp. Where are you?\
 """)
 
-bird.attributes.add("success_teleport_msg", """
+bird.attributes.add("success_teleport_msg", """\
 The tomb is dark. You fumble your way through it. You think you can
 make out a coffin in front of you in the gloom.
 
 The coffin comes into view. On and around it are chiseled scenes of a
 stern woman in armor. They depict great heroic deeds. This is clearly
 the tomb of some sort of ancient heroine - it must be the goal you
-have been looking for!
+have been looking for!\
 """)
 
 # -----------------------------------------------------------------------------
@@ -1431,33 +1430,30 @@ horse.attributes.add("puzzle_value", "1")
 horse.attributes.add("failure_teleport_to", cell)
 horse.attributes.add("success_teleport_to", tomb)
 
-horse.attributes.add("failure_teleport_msg", """
+horse.attributes.add("failure_teleport_msg", """\
 The tomb is dark. You fumble your way through it. You think you can
 make out a coffin in front of you in the gloom.
-
 
 |rSuddenly you hear a distinct 'click' and the ground abruptly
 disappears under your feet! You fall ... things go dark. |n
 
-
 ...
-
 
 ... You come to your senses. You lie down. On stone floor. You
 shakily come to your feet. Somehow you suspect that you are not under
 the tomb anymore, like you were magically snatched away.
 
-The air is damp. Where are you?
+The air is damp. Where are you?\
 """)
 
-horse.attributes.add("success_teleport_msg", """
+horse.attributes.add("success_teleport_msg", """\
 The tomb is dark. You fumble your way through it. You think you can
 make out a coffin in front of you in the gloom.
 
 The coffin comes into view. On and around it are chiseled scenes of a
 stern woman in armor. They depict great heroic deeds. This is clearly
 the tomb of some sort of ancient heroine - it must be the goal you
-have been looking for!
+have been looking for!\
 """)
 
 # -----------------------------------------------------------------------------
@@ -1475,33 +1471,30 @@ crown.attributes.add("puzzle_value", "2")
 crown.attributes.add("failure_teleport_to", cell)
 crown.attributes.add("success_teleport_to", tomb)
 
-crown.attributes.add("failure_teleport_msg", """
+crown.attributes.add("failure_teleport_msg", """\
 The tomb is dark. You fumble your way through it. You think you can
 make out a coffin in front of you in the gloom.
-
 
 |rSuddenly you hear a distinct 'click' and the ground abruptly
 disappears under your feet! You fall ... things go dark. |n
 
-
 ...
-
 
 ... You come to your senses. You lie down. On stone floor. You
 shakily come to your feet. Somehow you suspect that you are not under
 the tomb anymore, like you were magically snatched away.
 
-The air is damp. Where are you?
+The air is damp. Where are you?\
 """)
 
-crown.attributes.add("success_teleport_msg", """
+crown.attributes.add("success_teleport_msg", """\
 The tomb is dark. You fumble your way through it. You think you can
 make out a coffin in front of you in the gloom.
 
 The coffin comes into view. On and around it are chiseled scenes of a
 stern woman in armor. They depict great heroic deeds. This is clearly
 the tomb of some sort of ancient heroine - it must be the goal you
-have been looking for!
+have been looking for!\
 """)
 
 # -----------------------------------------------------------------------------
@@ -1519,33 +1512,30 @@ shield.attributes.add("puzzle_value", "3")
 shield.attributes.add("failure_teleport_to", cell)
 shield.attributes.add("success_teleport_to", tomb)
 
-shield.attributes.add("failure_teleport_msg", """
+shield.attributes.add("failure_teleport_msg", """\
 The tomb is dark. You fumble your way through it. You think you can
 make out a coffin in front of you in the gloom.
-
 
 |rSuddenly you hear a distinct 'click' and the ground abruptly
 disappears under your feet! You fall ... things go dark. |n
 
-
 ...
-
 
 ... You come to your senses. You lie down. On stone floor. You
 shakily come to your feet. Somehow you suspect that you are not under
 the tomb anymore, like you were magically snatched away.
 
-The air is damp. Where are you?
+The air is damp. Where are you?\
 """)
 
-shield.attributes.add("success_teleport_msg", """
+shield.attributes.add("success_teleport_msg", """\
 The tomb is dark. You fumble your way through it. You think you can
 make out a coffin in front of you in the gloom.
 
 The coffin comes into view. On and around it are chiseled scenes of a
 stern woman in armor. They depict great heroic deeds. This is clearly
 the tomb of some sort of ancient heroine - it must be the goal you
-have been looking for!
+have been looking for!\
 """)
 
 # -----------------------------------------------------------------------------
@@ -1563,33 +1553,30 @@ shield.attributes.add("puzzle_value", "4")
 shield.attributes.add("failure_teleport_to", cell)
 shield.attributes.add("success_teleport_to", tomb)
 
-shield.attributes.add("failure_teleport_msg", """
+shield.attributes.add("failure_teleport_msg", """\
 The tomb is dark. You fumble your way through it. You think you can
 make out a coffin in front of you in the gloom.
-
 
 |rSuddenly you hear a distinct 'click' and the ground abruptly
 disappears under your feet! You fall ... things go dark. |n
 
-
 ...
-
 
 ... You come to your senses. You lie down. On stone floor. You
 shakily come to your feet. Somehow you suspect that you are not under
 the tomb anymore, like you were magically snatched away.
 
-The air is damp. Where are you?
+The air is damp. Where are you?\
 """)
 
-shield.attributes.add("success_teleport_msg", """
+shield.attributes.add("success_teleport_msg", """\
 The tomb is dark. You fumble your way through it. You think you can
 make out a coffin in front of you in the gloom.
 
 The coffin comes into view. On and around it are chiseled scenes of a
 stern woman in armor. They depict great heroic deeds. This is clearly
 the tomb of some sort of ancient heroine - it must be the goal you
-have been looking for!
+have been looking for!\
 """)
 
 # -----------------------------------------------------------------------------
@@ -1605,10 +1592,10 @@ have been looking for!
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-tomb.db.desc = ("""
+tomb.db.desc = ("""\
 Apart from the ornate sarcophagus, the tomb is bare from extra decorations.
 This is the resting place of a warrior with little patience for
-glamour and trinkets. You have reached the end of your quest.
+glamour and trinkets. You have reached the end of your quest.\
 """)
 
 # Returned by the 'tutorial' command.
@@ -1634,7 +1621,8 @@ tomb_ex2 = create_object(exits.Exit, key="Exit tutorial",
 # All weapons from the rack gets an automatic alias the same as the
 # rack_id. This we can use to check if any such weapon is in inventory
 # before unlocking the exit.
-tomb_ex2.locks.add("view:tag(rack_sarcophagus, tutorial_world) ; traverse:tag(rack_sarcophagus, tutorial_world)")
+tomb_ex2.locks.add("view:tag(rack_sarcophagus, tutorial_world); "
+                   "traverse:tag(rack_sarcophagus, tutorial_world)")
 
 # -----------------------------------------------------------------------------
 #
@@ -1650,7 +1638,7 @@ tomb_sarcophagus = create_object(tutorial_world.objects.WeaponRack,
                                  aliases=["sarcophagus", "stone"])
 
 # Returned by the 'look' command.
-tomb_sarcophagus.db.desc = ("""
+tomb_sarcophagus.db.desc = ("""\
 The lid of the coffin is adorned with a stone statue in full size.
 The weapon held by the stone hands looks very realistic ...
 
@@ -1658,7 +1646,7 @@ The hands of the statue close on what seems to be a real weapon
 rather than one in stone.  This must be the hero's legendary weapon!
 The prize you have been looking for!
 
-(try |wget weapon|n)
+(try |wget weapon|n)\
 """)
 
 corner_obelisk.attributes.add("rack_id", "rack_sarcophagus")
@@ -1666,10 +1654,10 @@ corner_obelisk.attributes.add("available_weapons", ["ornate longsword",
                                                     "warhammer", "rune axe",
                                                     "thruning", "slayer waraxe",
                                                     "ghostblade", "hawkblade"])
-corner_obelisk.attributes.add("no_more_weapons_msg", """
-The tomb has already granted you all the might it will ever do.
+corner_obelisk.attributes.add("no_more_weapons_msg", """\
+The tomb has already granted you all the might it will ever do.\
 """)
-corner_obelisk.attributes.add("get_weapon_msg", """
+corner_obelisk.attributes.add("get_weapon_msg", """\
 Trembling you carefully release the weapon from the stone to test
 its weight. You are finally holding your prize,
 
@@ -1680,7 +1668,7 @@ in your hands!
 |gThis concludes the Evennia tutorial. From here you can either
 continue to explore the castle (hint: this weapon works better
 against the castle guardian than any you might have found earlier) or
-you can choose to exit.|n
+you can choose to exit.|n\
 """)
 
 # -----------------------------------------------------------------------------
@@ -1695,7 +1683,7 @@ you can choose to exit.|n
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-exitroom.db.desc = ("""
+exitroom.db.desc = ("""\
 |gThanks for trying out this little Evennia tutorial!
 
 
@@ -1711,7 +1699,7 @@ do it again to explore the various possibilities and rooms you might
 not have come across yet, maybe with the source/build code next to
 you.  If you play as superuser (user #1) the mobile will ignore you
 and teleport rooms etc will not affect you (this will also disable all
-locks, so keep that in mind when checking functionality).|n
+locks, so keep that in mind when checking functionality).|n\
 """)
 
 # Returned by the 'tutorial' command.
