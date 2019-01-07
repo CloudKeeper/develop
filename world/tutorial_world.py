@@ -1,6 +1,3 @@
-
-# -*- coding: utf-8 -*-
-
 """
 Evennia batchfile - tutorial_world
 
@@ -26,14 +23,14 @@ The area we are building looks like this:
     ? 03,04
     |
 +---+----+    +-------------------+    +--------+   +--------+
-|        |    |                   |    |gate    |   |corner  |
-| cliff  +----+   05 bridge       +----+  09    +---+   11   |
-|   02   |    |                   |    |        |   |        |
+|        |    |                   |    |        |   |        |
+| cliff  +----+      bridge       +----+  gate  +---+ corner |
+|   02   |    |       05          |    |   09   |   |   11   |
 +---+----+    +---------------+---+    +---+----+   +---+----+
     |    \                    |            |   castle   |
     |     \  +--------+  +----+---+    +---+----+   +---+----+
-    |      \ |under-  |  |ledge   |    |wall    |   |court-  |
-    |       \|ground  +--+  06    |    |  10    +---+yard    |
+    |      \ |under-  |  |  ledge |    |  wall  |   |court-  |
+    |       \|ground  +--+    06  |    |   10   +---+yard    |
     |        |   07   |  |        |    |        |   |   12   |
     |        +--------+  +--------+    +--------+   +---+----+
     |                \                                  |
@@ -54,35 +51,35 @@ given to each room, to allow safe teleporting and linking between them.
 
 We are going to build this layout using batchcode. Batchcode lets you
 use Evennia's API to code your world in full-fledged Python code. We
-could have also used batchcommand which is a series of commands your
+could also have used batchcommand which is a series of commands your
 character would play out in a pre-determined sequence or built our game
-manually inside the game.
+manually inside the game. Batchcode is much more powerful and doesnt rely on
+in game building commands, but grants users the ability to run any code on
+your PC. These security issues mean @Batchcode should be reserved for the
+Superuser.
 
 There are a number of styles when designing your batchcode. One is to
 create all the rooms together in a block before addressing each one and
 adorning each one with details and exits individually. This is the style
 we are going to use in this batchcode script.
 
-As we are designing our game worlds we should be mindful of what commands
+As we are designing our game world we should be mindful of what commands
 we give our players and what information those commands will need. In the 
-tutorial world we give our characters the 'look' command to tell players 
-about their current location, which uses the obj.db.desc attribute, 
-and the 'tutorial' command to give players insider information about the 
-features they are seeing, which uses the obj.db.tutorial_info attribute.
-Additionally we give players a range of hidden details for them to uncover
-using an extended look command, which uses obj.db.details.
+tutorial world we give our characters the 'look' command which uses the
+obj.db.desc attribute to tell players about their current location and a range
+of hidden details for them to uncover using an extended look command,
+which uses a dictionary on obj.db.details. Menwhile the 'tutorial' command
+uses the obj.db.tutorial_info attribute to give players insider information
+about the features they maybe using.
 
-***READ AND CLIMB COMMANDS***
-
-When building your own world you might want to separate your world into 
-a lot more individual batch files (maybe one for just a few rooms) for easy
-handling. 
+When building a larger game, one might separate the world into a number of
+separate batchfiles for easier handling and reaability
 """
 
 # We start by importing all the objects and tools we plan to build with
 from evennia import create_object
 from evennia.contrib import tutorial_world
-from evennia.objects import rooms, exits
+from typeclasses import exits
 
 # Next we create all the rooms in our Tutorial World at the beginning so 
 # we can build and connect them in any order.
@@ -165,9 +162,12 @@ entry.db.desc = ("This starts the |gEvennia tutorial|n, using a small solo "
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-intro.db.desc = ("""
+# Triple quotes is a good way to have long blocks of text in a format that's
+# easy to read in code. It does however include the first and last new line
+# in the variable. The 'look' command already provides spaces around text for
+# in game formatting so we'll ignore those with the \ character.
+intro.db.desc = ("""\
 |gWelcome to the Evennia tutorial!|n
-
 
 The following tutorial consists of a small single-player quest
 area. The various rooms are designed to show off some of the power
@@ -175,7 +175,6 @@ and possibilities of the Evennia mud creation system. At any time
 during this tutorial you can use the |wtutorial|n (or |wtut|n)
 command to get some background info about the room or certain objects
 to see what is going on "behind the scenes".
-
 
 To get into the mood of this miniature quest, imagine you are an
 adventurer out to find fame and fortune. You have heard rumours of an
@@ -188,9 +187,8 @@ You reach the coast in the midst of a raging thunderstorm. With wind
 and rain screaming in your face you stand where the moor meet the sea
 along a high, rocky coast ...
 
-
 |g(write 'start' or 'begin' to start the tutorial. Try 'tutorial'
-to get behind-the-scenes help anywhere.)|n
+to get behind-the-scenes help anywhere.)|n\
 """)
 
 # Returned by the 'tutorial' command.
@@ -225,31 +223,31 @@ intro_ex2 = create_object(exits.Exit, key="Begin Adventure",
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-outro.db.desc = ("""
-You are quitting the Evennia tutorial prematurely! Please come back later.
+outro.db.desc = ("""\
+You are quitting the Evennia tutorial prematurely! Please come back later.\
 """)
 
 # Returned by the 'tutorial' command.
-intro.attributes.add("tutorial_info", """
+outro.attributes.add("tutorial_info", """\
 This outro room cleans up properties on the character that was set by 
-the tutorial.
+the tutorial.\
 """)
 
 # EXITS
 outro_ex1 = create_object(exits.Exit, key="Start Again", aliases=["start"], 
                           location=outro, destination=intro)
+outro_ex2 = create_object(exits.Exit, key="Exit Tutorial", aliases=["exit"],
+                          location=outro, destination=caller.location)
 
 # -----------------------------------------------------------------------------
 #
 # The Cliff
 # This room inherits from a Typeclass called WeatherRoom. It regularly
-# and randomly shows some weather effects. Note how we can spread the
-# command's arguments over more than one line for easy reading.  we
-# also make sure to create plenty of aliases for the room and
-# exits. Note the alias tut#02: this unique identifier can be used
-# later in the script to always find the way back to this room (for
-# example by teleporting and similar). This is necessary since there
-# is no way of knowing beforehand what dbref a given room will get in the
+# and randomly shows some weather effects. we make sure to create plenty of
+# aliases for the room and exits. Note the alias tut#02: this unique
+# identifier can be used later in the script to always find the way back to
+# this room (for example by teleporting and similar). This is necessary since
+# there is no way of knowing beforehand what dbref a given room will get in the
 # database.
 #
 # This room has Mood-setting details to look at. This makes use of the custom 
@@ -260,7 +258,7 @@ outro_ex1 = create_object(exits.Exit, key="Start Again", aliases=["start"],
 # ROOM DETAILS
 
 # Returned by the 'look' command.
-cliff.db.desc = ("""
+cliff.db.desc = ("""\
 You stand on the high coast line overlooking a stormy |wsea|n far
 below. Around you the ground is covered in low gray-green grass,
 pushed flat by wind and rain. Inland, the vast dark moors begin, only
@@ -269,24 +267,24 @@ here and there covered in patches of low trees and brushes.
 To the east, you glimpse the ragged outline of a castle |wruin|n. It sits
 perched on a sheer cliff out into the water, isolated from the
 shore. The only way to reach it seems by way of an old hanging bridge,
-anchored not far east from here.
+anchored not far east from here.\
 """)
 
 # Details returned by extended 'look' command.
 cliff.db.details = {}
 
-desc = """
+desc = """\
 A fair bit out from the rocky shores you can make out the foggy
 outlines of a ruined castle. The once mighty towers have crumbled and
 it presents a jagged shape against the rainy sky. The ruin is perched
 on its own cliff, only connected to the mainland by means of an old
-hanging bridge starting not far east from you.
+hanging bridge starting not far east from you.\
 """
 cliff.db.details["ruin"] = desc
 cliff.db.details["ruins"] = desc
 cliff.db.details["castle"] = desc
 
-desc = """
+desc = """\
 The gray sea stretches as far as the eye can see to the east. Far
 below you its waves crash against the foot of the cliff. The vast
 inland moor meets the ocean along a high and uninviting coastline of
@@ -294,14 +292,14 @@ ragged vertical stone.
 
 Once this part of the world might have been beautiful, but now the
 eternal winds and storms have washed it all down into a gray and
-barren wasteland.
+barren wasteland.\
 """
 cliff.db.details["sea"] = desc
 cliff.db.details["ocean"] = desc
 cliff.db.details["waves"] = desc
 
 # Returned by the 'tutorial' command.
-intro.attributes.add("tutorial_info", """
+cliff.attributes.add("tutorial_info", """
 Weather room
 
 This room inherits from a parent called WeatherRoom. It uses the
@@ -326,10 +324,10 @@ cliff_ex1.locks.add("view:tag(tutorial_climbed_tree, tutorial_world); "
                     "traverse:tag(tutorial_climbed_tree, tutorial_world)")
 
 # Returned by the 'look' command.
-cliff_ex1.db.desc = ("""
+cliff_ex1.db.desc = ("""\
 This is a hardly visible footpath leading off through the rain-beaten
 grass. It seems to circle the trees northward. You would never had
-noticed it had you not spotted it from up in the tree.
+noticed it had you not spotted it from up in the tree.\
 """)
 
 # Returned by the 'tutorial' command.
@@ -347,10 +345,10 @@ is used.
 cliff_ex2 = create_object(exits.Exit, key="old bridge", 
                           aliases=["east", "e", "bridge", "hangbridge"], 
                           location=cliff, destination=bridge)
-cliff_ex2.db.desc = ("""
+cliff_ex2.db.desc = ("""\
 The hanging bridge's foundation sits at the edge of the cliff to the
 east - two heavy stone pillars anchor the bridge on this side. The
-bridge sways precariously in the storm.
+bridge sways precariously in the storm.\
 """)
 
 # -----------------------------------------------------------------------------
@@ -363,11 +361,11 @@ bridge sways precariously in the storm.
 cliff_well = create_object(key="Old well", aliases=["well"], location=cliff)
 
 # Returned by 'look' command.
-cliff_well.db.desc = ("""
+cliff_well.db.desc = ("""\
 The ruins of an old well sit some way off the path. The stone circle
 has collapsed and whereas there is still a chain hanging down the
 hole, it does not look very secure. It is probably a remnant of some
-old settlement back in the day.
+old settlement back in the day.\
 """)
 
 # Returned by the 'tutorial' command.
@@ -384,10 +382,10 @@ cliff_well.locks.add("get:false()")
 
 # By setting the lock_msg attribute there will be a nicer error message if 
 # people try to pick up the well.
-cliff_well.attributes.add("get_err_msg", """
+cliff_well.attributes.add("get_err_msg", """\
 You nudge the heavy stones of the well with a foot. There is no way
 you can ever budge this on your own (besides, what would you do with
-all those stones? Start your own quarry?).
+all those stones? Start your own quarry?).\
 """)
 
 # -----------------------------------------------------------------------------
@@ -401,11 +399,11 @@ cliff_sign = create_object(key="Wooden Sign", aliases=["sign"],
                            location=cliff)
 
 # Returned by 'look' command.
-cliff_sign.db.desc = ("""
+cliff_sign.db.desc = ("""\
 The wooden sign sits at the end of a small eastward path. Beyond it
 is the shore-side anchor of the hanging bridge that connects the main
 land with the castle ruin on its desolate cliff. The sign is not as
-old as the rest of the scenery and the text on it is easily readable.
+old as the rest of the scenery and the text on it is easily readable.\
 """)
 
 # Returned by the 'tutorial' command.
@@ -419,13 +417,13 @@ on the sign.
 """)
 
 # Returned by the 'read' command.
-cliff_sign.attributes.add("readable_text", """
+cliff_sign.attributes.add("readable_text", """\
 
 |rWARNING - The bridge is not safe!|n
 
 Below this official warning, someone has carved some sprawling
 letters into the wood. It reads: "The guardian will not bleed to
-mortal blade."
+mortal blade."\
 """)
 
 # Prevent from picking up with nice error message.
@@ -448,10 +446,10 @@ cliff_tree = create_object(key="gnarled old trees",
                            typeclass=tutorial_world.objects.Climbable)
 
 # Returned by 'look' command.
-cliff_tree.db.desc = ("""
+cliff_tree.db.desc = ("""\
 Only the sturdiest of trees survive at the edge of the moor. A small group 
 of huddling black things has dug in near the cliff edge, eternally pummeled 
-by wind and salt to become an integral part of the gloomy scenery.
+by wind and salt to become an integral part of the gloomy scenery.\
 """)
 
 # Returned by the 'tutorial' command.
@@ -466,7 +464,7 @@ that an exit is then looking for.
 # Our custom climb command assigns a Tag 'tutorial_climbed_tree' on the 
 # climber. The footpath exit will be locked with this tag, meaning that
 # it can only be seen/traversed by someone first having climbed.
-cliff_tree.attributes.add("climb_text", """
+cliff_tree.attributes.add("climb_text", """\
 With some effort you climb one of the old trees.
 
 
@@ -480,14 +478,14 @@ but impossible to make out from ground level. You mentally register
 where the footpath starts and will now be able to find it again.
 
 
-You climb down again.
+You climb down again.\
 """)
 
 # Prevent from picking up with nice error message.
 cliff_tree.locks.add("get:false()")
-cliff_tree.attributes.add("get_err_msg", """
+cliff_tree.attributes.add("get_err_msg", """\
 The group of old trees have withstood the eternal wind for hundreds
-of years. You will not uproot them any time soon.
+of years. You will not uproot them any time soon.\
 """)
 
 # -----------------------------------------------------------------------------
@@ -499,34 +497,34 @@ of years. You will not uproot them any time soon.
 # -----------------------------------------------------------------------------
 
 # Returned by the 'look' command.
-osinn.db.desc = ("""
+osinn.db.desc = ("""\
 You stand outside a one-story sturdy wooden building. Light flickers
 behind closed storm shutters. Over the door a sign creaks in the wind
 - the writing says |cEvennia Inn|n and the curly letters are
 surrounded by a painted image of some sort of snake.  From inside you
-hear the sound of laughter, singing and loud conversation.
+hear the sound of laughter, singing and loud conversation.\
 """)
 
 # Details returned by extended 'look' command.
 osinn.db.details = {}
 
-desc = """
-The shutters are closed.
+desc = """\
+The shutters are closed.\
 """
 osinn.db.details["shutters"] = desc
 osinn.db.details["storm"] = desc
 
-desc = """
+desc = """\
 You think you might have heard of this name before,
-but at the moment you can't recall where from.
+but at the moment you can't recall where from.\
 """
 osinn.db.details["inn"] = desc
 osinn.db.details["sign"] = desc
 
-desc = """
+desc = """\
 The snake is cartoonish with big googly eyes. It looks somewhat
 like one of those big snakes from the distant jungles - the kind
-squeezes their victims.
+squeezes their victims.\
 """
 osinn.db.details["snake"] = desc
 osinn.db.details["letters"] = desc
@@ -726,7 +724,7 @@ ledge.
 ledge.db.details["bridge"] = desc
 
 # Returned by the 'tutorial' command.
-intro.attributes.add("tutorial_info", """
+ledge.attributes.add("tutorial_info", """
 This room is stored as an attribute on the 'Bridge' room and used as
 a destination should the player fall off the bridge. It is the only
 way to get to this room. In our example the bridge is relatively
@@ -965,16 +963,16 @@ your enemy. The enemy is quite powerful, so don't stick around too
 long ...
 """)
 
-# We lock the bridge exit for the mob, so it don't wander out on the bridge.
-# Only traversing objects controlled by an account (i.e. Characters) may cross
-# the bridge.
-gate.locks.add("traverse:has_account()")
-
 # EXITS
 
 gate_ex1 = create_object(exits.Exit, key="Bridge over the abyss", 
                          aliases=["bridge", "abyss", "west", "w"],
                          location=gate, destination=bridge)
+# We lock the bridge exit for the mob, so it don't wander out on the bridge.
+# Only traversing objects controlled by an account (i.e. Characters) may cross
+# the bridge.
+gate_ex1.locks.add("traverse:has_account()")
+
 gate_ex2 = create_object(exits.Exit, key="castle corner", 
                          aliases=["corner", "east", "e"],
                          location=gate, destination=innerwall)
@@ -1631,7 +1629,7 @@ tomb_ex1 = create_object(exits.Exit, key="back to antechamber",
                          location=tomb, destination=antechamber)
 tomb_ex2 = create_object(exits.Exit, key="Exit tutorial", 
                          aliases=["exit", "end"], 
-                         location=tomb, destination=exit)
+                         location=tomb, destination=exitroom)
                          
 # All weapons from the rack gets an automatic alias the same as the
 # rack_id. This we can use to check if any such weapon is in inventory
@@ -1729,4 +1727,4 @@ exitroom.attributes.add("wracklist", ["rack_barrel", "rack_sarcophagus"])
 # EXITS
 
 exitroom_ex1 = create_object(exits.Exit, key="Exit Tutorial", aliases=["exit"],
-                             location=exit, destination=caller.location)
+                             location=exitroom, destination=caller.location)
