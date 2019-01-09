@@ -1,5 +1,5 @@
 """
-IRC Radio - INOPERABLE
+IRC2Object - INOPERABLE
 
 Cloud_Keeper 2018
 
@@ -79,7 +79,7 @@ class PortalBot(IRCBot):
                            "'%s'." % settings.SERVERNAME)
             self.send_privmsg(pm_response, user=user)
 
-        # We pass regular channel messages to out Server Bot.
+        # We pass regular channel messages to our Server Bot.
         elif not msg.startswith('***'):
             user = user.split('!', 1)[0]
             user = ansi.raw(user)
