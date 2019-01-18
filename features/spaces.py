@@ -1,30 +1,13 @@
 """
-Spaces - INOPERABLE
+Spaces - NEEDS TESTING
+
+FEAATURES:
+-SET A PLAYER LIMIT
 
 -Character Mixin
 -Exit Obj
 -Room Mixin
 -Design Menu
-
-picture a fireplace in a room. Those sitting at the fireplace are having a
-conversation but that conversation isn't passed to everyone in the room. Just
-those sitting at the fireplace
-
-Apparently it's a very standard mush feature - it was something Apostate
-asked me to implement very early on. Places/tabletalk, that is.
-
-It's known as many different names across the hobby, I've known it as
-"locations" or "sublocations" before.
-
-So I was thinking an object with a "sit" command, that when you sit it
-replaces your say and pose commands with a custom one.
-
-Some consider using dicts in Attributes but I've also seen people using
-coordinate systems inside the room or even to use rooms-within-rooms.
-
-Thinking outloud. If the say command is on the fireplace, you could save
-putting any attributes on the player because the cmd.object would be the
-fireplace
 
 I suppose one could add  to the extended_room contrib with that kind of
 functionality. My main reason for not doing so was always that in MUDs,
@@ -57,100 +40,290 @@ implementation though
 wanted to make it more complex, the 'tabletalk' command could add a new cmdset
 to you with new implementations of say/emote etc that redirects outputs only to
 your location.
-
 """
-from evennia.commands import cmdset, command
-from evennia.utils import utils
-COMMAND_DEFAULT_CLASS = utils.class_from_module(settings.COMMAND_DEFAULT_CLASS)
+###############################################################################
+# CmdPlace - Place Listing/Describing/Creating/Deleting Command.
+###############################################################################
+from evennia.commands.default.muxcommand import MuxCommand
+from evennia.commands.cmdset import CmdSet
+from evennia.utils import evtable, create
+from typeclasses.objects import Object
+from django.conf import settings
+
+_DEFAULT_WIDTH = settings.CLIENT_DEFAULT_WIDTH
 
 
-class CmdSpace(COMMAND_DEFAULT_CLASS):
+class CmdPlace(MuxCommand):
     """
-    Create and delete spaces
-    """
+    create new objects
+    Usage:
+        @place/create <objname>[, alias, alias...][= desc]"
 
-    key = "@space"
-    locks = "cmd:perm(home) or perm(Builder)"
-    arg_regex = r"$"
+    Command Description
+        @place
+    """
+    key = "@place"
+    switch_options = ("create", "desc", "del")
+    help_category = "Building"
+    locks = "cmd:perm(create) or perm(Builder)"
 
     def func(self):
-        """
-        Default exit traverse if no syscommand is defined.
-        """
-        # If no args return list of places & Usage
-        if not self.args:
-            pass
+        """Implement function"""
+        # Prepare common values.
+        caller = self.caller
+        places = [place for place in caller.location.content
+                  if place.is_typeclass(PlaceObj)]
 
-        # Switch options available
-        if self.switches:
-            # @space/create <place> [, alias, alias]
-            if "create" in self.switches:
-                pass
+        if not self.switches:
+            """
+            
+            """
+            # Handle no Places located.
+            if not places:
+                self.msg("No channels available.")
+                return
 
-            # @space/delete <place>
-            elif "delete" in self.switches:
-                pass
+            # Organise EvTable for display
+            table = evtable.EvTable("|wplace|n", "|waliases|n",
+                                    "|wdescription|n", maxwidth=_DEFAULT_WIDTH)
+            for place in places:
+                clower = place.key.lower()
+                aliases = place.aliases.all()
+                table.add_row(*["%s%s" % clower,
+                                "%s" % ",".join(aliases),
+                                place.db.desc])
+            table.reformat_column(0, width=9)
+            table.reformat_column(3, width=14)
 
-            # Invalid switches: Return usage
+            # Send table to player
+            self.msg("\nAvailable channels:\n%s" % table)
+
+        elif 'create' in self.switches:
+            """
+            create new objects
+            Usage:
+                @place/create <objname>[, alias, alias...][= desc]
+
+            Command Description
+                @place/create fireplace, fire
+            """
+            # Handle improper use.
+            if not self.args:
+                string = "Usage: @place/create <objname>[, alias, alias...][= desc]"
+                caller.msg(string)
+                return
+
+            # Parse arguments
+            key = self.lhslist.pop(0)
+            aliases = self.lhslist
+            desc = self.rhs
+
+            # Create Object
+            place = create.create_object(PlaceObj, key, caller.location,
+                                         aliases=aliases)
+            place.db.desc = desc if desc else "A place to talk with others."
+
+            # Message Player
+            if aliases:
+                string = "You create a new Place: %s (aliases: %s)."
+                string = string % (key, ", ".join(aliases))
             else:
-                pass
+                string = "You create a new Place: %s."
+                string = string % place.name
+            caller.msg(string)
 
-        # Handle everything else as a message.
-        pass
+        elif 'desc' in self.switches:
+            """
 
-def create_place(object, name="Campfire", aliases=[], locks=None):
+            """
+            # Handle improper use.
+            if not self.args:
+                string = "Usage: @place/desc <objname> = desc"
+                caller.msg(string)
+                return
+
+            # Parse arguments
+            place = caller.search(self.lhs, candidates=places)
+            if not place:
+                string = "Target '" + self.lhs + "' could not be located."
+                caller.msg(string)
+                return
+            desc = self.rhs or ''
+
+            # Update object description.
+            if place.access(self.caller, 'control') or \
+                    place.access(self.caller, 'edit'):
+                place.db.desc = desc
+                caller.msg("The description was set on %s." %
+                           place.get_display_name(caller))
+            else:
+                caller.msg("You don't have permission to edit the description "
+                           "of %s." % place.key)
+
+        elif 'del' in self.switches:
+            """
+
+            """
+            # Handle improper use.
+            if not self.args:
+                string = "Usage: @place/desc <objname> = desc"
+                caller.msg(string)
+                return
+
+            # Parse arguments
+            place = caller.search(self.lhs, candidates=places)
+            if not place:
+                string = "Target '" + self.lhs + "' could not be located."
+                caller.msg(string)
+                return
+
+            # Delete object.
+            if place.access(self.caller, 'control') or \
+                    place.access(self.caller, 'edit'):
+                place.delete()
+                caller.msg("The description was set on %s." %
+                           place.get_display_name(caller))
+            else:
+                caller.msg("You don't have permission to delete the "
+                           "place: %s." % place.key)
+
+
+class PlaceCommand(MuxCommand):
     """
 
-    """
-    cmd = PlaceCommand(key=name.strip().lower(),
-                       aliases=[alias.strip().lower() for alias in aliases],
-                       locks=locks,
-                       auto_help=False,
-                       obj=object)
-    # create a cmdset
-    exit_cmdset = cmdset.CmdSet(None)
-    exit_cmdset.key = 'ExitCmdSet'
-    exit_cmdset.priority = 100
-    exit_cmdset.duplicates = True
-    # add command to cmdset
-    exit_cmdset.add(cmd)
-
-    object.cmdset.add_default(PlaceCommand(self), permanent=True)
-
-
-class PlaceCommand(COMMAND_DEFAULT_CLASS):
-    """
-    allows usage of a space
     """
     obj = None
 
+    def message_occupants(self, msg):
+        """
+
+        """
+        for occupant in self.obj.db.occupants:
+            if occupant.location == self.obj.location:
+                occupant.msg(msg)
+            else:
+                self.obj.db.occupants.remove(occupant)
+
     def func(self):
         """
-        Default exit traverse if no syscommand is defined.
+
         """
-        # If no args return usage.
-        if not self.args:
-            pass
+        caller = self.caller
+        place = self.obj
+        occupants = place.db.occupants
 
-        # Switch options available
-        if self.switches:
-            # <placekey>/join <place>
-            if "join" in self.switches:
-                pass
+        if not self.switches:
+            """
 
-            # <placekey>/quit <place>
-            elif "quit" in self.switches:
-                pass
+            """
+            # Handle non-occupant messages
+            if caller not in occupants:
+                self.msg("To contribute to the conversation you must join "
+                         "the " + place.key)
+                self.message_occupants(caller.key + " attempts to speak "
+                                       "from elsewhere but his words are not "
+                                       "heard.")
+                return
 
-            # Invalid switches: Return Usage
-            else:
-                pass
+            # Send message to occupants.
+            msg = caller.key + " says to the group, '" + self.args + "'."
+            self.message_occupants(msg)
 
-        # Handle everything else as a message.
-        pass
+        elif 'join' in self.switches:
+            """
+            
+            """
+            # Add caller to occupants and alert occupants.
+            occupants.append(caller)
+            caller.msg("You have joined the " + place.key)
+            self.message_occupants(caller.key + "has joined the " + place.key)
 
-def delete_place(place):
+            # Send message to occupants.
+            if self.args:
+                msg = caller.key + " says to the group, '" + self.args + "'."
+                self.message_occupants(msg)
+
+        elif 'leave' in self.switches:
+            """
+
+            """
+            # Send message to occupants.
+            if self.args:
+                msg = caller.key + " says to the group, '" + self.args + "'."
+                self.message_occupants(msg)
+
+            # Remove caller from occupants and alert occupants.
+            occupants.remove(caller)
+            caller.msg("You have left the " + place.key)
+            self.message_occupants(caller.key + "has left the " + place.key)
+
+
+class PlaceObj(Object):
     """
 
     """
-    pass
+
+    place_command = PlaceCommand
+    priority = 101
+
+    lockstring = "get:false()"
+    occupants = []
+
+    # Helper classes and methods to implement the Exit. These need not
+    # be overloaded unless one want to change the foundation for how
+    # Exits work. See the end of the class for hook methods to overload.
+
+    def create_place_cmdset(self, exidbobj):
+        """
+        Helper function for creating an exit command set + command.
+        The command of this cmdset has the same name as the Exit
+        object and allows the exit to react when the account enter the
+        exit's name, triggering the movement between rooms.
+        Args:
+            exidbobj (Object): The DefaultExit object to base the command on.
+        """
+
+        # create an exit command. We give the properties here,
+        # to always trigger metaclass preparations
+        cmd = self.exit_command(key=exidbobj.db_key.strip().lower(),
+                                aliases=exidbobj.aliases.all(),
+                                locks=str(exidbobj.locks),
+                                auto_help=False,
+                                destination=exidbobj.db_destination,
+                                arg_regex=r"^$",
+                                is_exit=True,
+                                obj=exidbobj)
+        # create a cmdset
+        exit_cmdset = CmdSet(None)
+        exit_cmdset.key = 'PlaceCmdSet'
+        exit_cmdset.priority = self.priority
+        exit_cmdset.duplicates = True
+        # add command to cmdset
+        exit_cmdset.add(cmd)
+        return exit_cmdset
+
+    # Command hooks
+
+    def at_cmdset_get(self, **kwargs):
+        """
+        Called just before cmdsets on this object are requested by the
+        command handler. If changes need to be done on the fly to the
+        cmdset before passing them on to the cmdhandler, this is the
+        place to do it. This is called also if the object currently
+        has no cmdsets.
+        Kwargs:
+          force_init (bool): If `True`, force a re-build of the cmdset
+            (for example to update aliases).
+        """
+
+        if "force_init" in kwargs or not self.cmdset.has_cmdset("PlaceCmdSet", must_be_default=True):
+            # we are resetting, or no exit-cmdset was set. Create one dynamically.
+            self.cmdset.add_default(self.create_exit_cmdset(self), permanent=False)
+
+    def at_init(self):
+        """
+        This is called when this objects is re-loaded from cache. When
+        that happens, we make sure to remove any old ExitCmdSet cmdset
+        (this most commonly occurs when renaming an existing exit)
+        """
+        self.cmdset.remove_default()
