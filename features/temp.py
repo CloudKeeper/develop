@@ -1,460 +1,178 @@
 """
-IRC2Puppet - TO BE TESTED
 
-Cloud_Keeper 2018
-
-This is a simple version of an IRC2Puppet bot. This connects an Evennia
-location to an IRC channel. This is achieved by having a hidden 'listener'
-object in the room which sends say and pose messages to a bot (the Portal Bot)
-connected to IRC. The Portal Bot communicates what it receives to the IRC
-channel E.g.
-        MUDUser says, "Hi There" -> <IRC2Puppet> MUDUser: Hi There
-The Portal Bot then communicates what is said in IRC back to Evennia via the
-AccountBot. The Server Bot creates a puppet for each user inside the IRC
-channel in the same room as the listener object and causes the puppets to mimic
-what is said and posed in IRC.
-
-Table of Contents - In order of the Message Path Evennia -> IRC -> Evennia:
-Evennia to IRC Path:
-    Listener Object -> AccountBot -> PortalBot -> IRC
-IRC to Evennia Path:
-    IRC -> PortalBot -> AccountBot -> Puppet Objects
-Helper Functions:
-    AccountBot Start & Delete Functions
-    PortalFactory
-IRC2Puppet Command.
-
-Instructions:
-    1. Ensure IRC is enabled in your games settings file.
-    2. Import the BotCmdSet to your character CmdSet.
-    3. @puppetbot <ircnetwork> <port> <#irchannel> <botname>
-
-### NOTES ###
-Line 783. I think password cannot be None.
 """
-
 import time
+import hashlib
 from django.conf import settings
 from evennia import CmdSet
 from evennia.accounts.bots import Bot
 from evennia.accounts.models import AccountDB
-from evennia.server.portal.irc import IRCBot, IRCBotFactory
-from evennia.utils import create, search, utils, ansi
-from typeclasses.characters import Character
-from typeclasses.objects import Object
+from evennia.utils.utils import class_from_module
+from evennia.utils import create, search
+from twisted.application import internet
+from twisted.words.protocols import irc
+from twisted.internet import protocol, reactor
+from evennia.server.portal.irc import parse_ansi_to_irc, parse_irc_to_ansi
+from evennia.server.session import Session
+from evennia.utils import logger, utils, ansi
+
+COMMAND_DEFAULT_CLASS = class_from_module(settings.COMMAND_DEFAULT_CLASS)
+_DEFAULT_WIDTH = settings.CLIENT_DEFAULT_WIDTH
+_IRC_ENABLED = settings.IRC_ENABLED
 
 _SESSIONS = None
 
-_DEFAULT_WIDTH = settings.CLIENT_DEFAULT_WIDTH
 
-COMMAND_DEFAULT_CLASS = utils.class_from_module(settings.COMMAND_DEFAULT_CLASS)
-
-##############################################################################
-#
-# Listener Object - Evennia -> IRC
-#
-##############################################################################
-
-
-class Listener(Object):
+class BotCmdSet(CmdSet):
     """
-    Evennia to IRC Path:
-    **Listener Object** -> ServerBot -> AccountBot -> IRC
-
-    This is the beginning of the Evennia to IRC Pipeline. The simple 'listener'
-    object sits in a target room catching all messages and forwarding them to a
-    bot (the AccountBot) for formatting.
-    """
-    def at_object_creation(self):
-        """
-        At creation we hide the 'listener' from view.
-        """
-        self.locks.add("view:perm(Immortals)")
-
-    def msg(self, text=None, **kwargs):
-        """
-        Relay messages to the Portal Bot via the AccountBot.
-        """
-        if self.db.bot:
-            self.db.bot.msg(text=text, **kwargs)
-
-
-class Puppet(Character):
-    """
-    Evennia to IRC Path:
-    **Listener Object** -> ServerBot -> AccountBot -> IRC
-
-    This implements a character object intended to be controlled remotely by
-    the PuppetBot. Each user on the target IRC channel will be represented by
-    a Puppet object and all communication will be through the puppet object
-    using the execute_cmd method.
-
-    The Puppets are an alternative source of messages. Whispers.
-    """
-    pass
-
-
-##############################################################################
-#
-# Server Bot - Evennia -> IRC
-#
-##############################################################################
-
-
-class AccountBotOutputFunctions(Bot):
-    """
-    Evennia to IRC Path:
-    Listener Object -> **AccountBot** -> PortalBot -> IRC
-
-    For readability, the Server Bot has been split into two parts. This is the
-    first half, dedicated to 'Evennia to IRC Pipeline' functionality.
-
-    Where as the PortalBot is a fake player (external to Evennia) the Account
-    bot is the fake players account. In the same way that a real player
-    account handles receiving game messages and sending them to the players
-    client (whether it be telnet, the webclient or otherwise) the AccountBot
-    handles receiving messages (from the listener object) and sending them to
-    the fake player.
+    Implements the account command set.
     """
 
-    def msg(self, text=None, **kwargs):
-        """
-        Receive text via the Listener Object and send to IRC via the PortalBot
-        after changing the messages to an IRC format.
-        By ultimately running super.msg(channel=msg) it will call the
-        send_channel method on the corresponding Portal connection.
+    key = "DefaultAccount"
+    priority = -10
 
-        Common message types that will be received by the listener are:
-            Messages from the 'Say' Command:
-                text = ("MUDUser says, 'text'", {"type":say"})
-                kwargs = {from_obj=obj, session=session, options:[]}
-            Messages from the 'Whisper' Command:
-                text = ("MUSUser whispers, 'text;", {"type":"whisper"})
-                kwargs = {from_obj=obj, session=session, options:[]}
-            Messages from the 'Pose' Command:
-                text = ("MUDUser text", {"type":"pose"})
-                kwargs = {from_obj=obj, session=session, options:[]}
-            Messages from the 'Look' Command and other game text:
-                text = "text"
-                kwargs = {from_obj=obj, session=session, options:[]}
-        """
-        # Only allow msgs with type tag...
-        if isinstance(text, tuple):
-            msg = text[0]
-            if text[1].get("type") == "pose":
-                # The msg is already in the format for IRC actions 'MUDUser poses'
-                super(AccountBotOutputFunctions, self).msg(channel=msg)
-                return
-
-            if text[1].get("type") == "say":
-                # Turn 'MUDUser says, "string"' to 'MUDUser: Hi There'
-                msg = kwargs["from_obj"].key + ": " + msg.split('"', 1)[1][:-1]
-                super(AccountBotOutputFunctions, self).msg(channel=msg)
-                return
-
-    def get_nicklist(self, caller=None):
-        """
-        Send a request for the nick listed from the connected channel.
-
-        Args:
-            caller (Object or Account): The requester of the list. This will
-                be stored and echoed to when the irc network replies with the
-                requested info.
-
-        Notes: Since the return is asynchronous, the caller is stored internally
-            in a list; all callers in this list will get the nick info once it
-            returns (it is a custom OOB inputfunc option). The callback will not
-            survive a reload (which should be fine, it's very quick).
-        """
-        if not hasattr(self, "_nicklist_callers"):
-            self._nicklist_callers = []
-        if caller:
-            self._nicklist_callers.append(caller)
-        super(AccountBotOutputFunctions, self).msg(request_nicklist="")
-        return
-
-##############################################################################
-#
-# Portal Bot - Evennia -> IRC
-#
-##############################################################################
+    def at_cmdset_creation(self):
+        """Populates the cmdset"""
+        self.add(CmdPuppetBot())
 
 
-class PortalBot(IRCBot):
+class CmdPuppetBot(COMMAND_DEFAULT_CLASS):
     """
-    Evennia to IRC Path:
-    Listener Object -> AccountBot -> **PortalBot** -> IRC
-
-    The PortalBot is a fake player which connects to an IRC channel. This
-    portion of the PortalBot receives Evennia messages forwarded by the
-    Listener and sends it to the IRC channel.
+    link an evennia channel to an external IRC channel
+    Usage:
+      @irc2chan[/switches] <evennia_channel> = <ircnetwork> <port> <#irchannel> <botname>[:typeclass]
+      @irc2chan/delete botname|#dbid
+    Switches:
+      /delete     - this will delete the bot and remove the irc connection
+                    to the channel. Requires the botname or #dbid as input.
+      /remove     - alias to /delete
+      /disconnect - alias to /delete
+      /list       - show all irc<->evennia mappings
+      /ssl        - use an SSL-encrypted connection
+    Example:
+      @irc2chan myircchan = irc.dalnet.net 6667 #mychannel evennia-bot
+      @irc2chan public = irc.freenode.net 6667 #evgaming #evbot:accounts.mybot.MyBot
+    This creates an IRC bot that connects to a given IRC network and
+    channel. If a custom typeclass path is given, this will be used
+    instead of the default bot class.
+    The bot will relay everything said in the evennia channel to the
+    IRC channel and vice versa. The bot will automatically connect at
+    server start, so this command need only be given once. The
+    /disconnect switch will permanently delete the bot. To only
+    temporarily deactivate it, use the  |w@services|n command instead.
+    Provide an optional bot class path to use a custom bot.
     """
 
-    # def send_channel(self, *args, **kwargs):
-    #     """
-    #     Send a message to the connected IRC channel. The base functionality
-    #     is suitable for our purposes. For Information Only.
-    #     """
+    key = "@puppetbot"
+    switch_options = ("delete", "remove", "disconnect", "list", "ssl")
+    locks = "cmd:serversetting(IRC_ENABLED) and pperm(Developer)"
+    help_category = "Comms"
 
-##############################################################################
-#
-# IRC to Evennia Path:
-#     IRC -> PortalBot -> AccountBot -> Puppet Objects
-#
-##############################################################################
-#
-# Portal Bot - IRC -> Evennia
-#
-##############################################################################
-    """
-    IRC to Evennia Path:
-    IRC -> *PortalBot* -> AccountBot -> Puppet Objects
+    def func(self):
+        """Setup the irc-channel mapping"""
 
-    The PortalBot is a fake player which connects to an IRC channel. This
-    is a continuation of the PortalBot. This portion handles receiving messages
-    from IRC and sending them back to Evennia.
-    """
+        if not settings.IRC_ENABLED:
+            string = """IRC is not enabled. You need to activate it in game/settings.py."""
+            self.msg(string)
+            return
 
-    def privmsg(self, user, channel, msg):
-        """
-        Called when the connected channel receives a message.
-
-        Args:
-            user (str): User name sending the message.
-            channel (str): Channel name seeing the message.
-            msg (str): The message arriving from channel.
-
-        """
-        # Respond to private messages with a little bit of information.
-        if channel == self.nickname:
-            user = user.split('!', 1)[0]
-            pm_response = ("This is an Evennia IRC bot connecting from "
-                           "'%s'." % settings.SERVERNAME)
-            self.send_privmsg(pm_response, user=user)
-
-        # We pass regular channel messages to our Server Bot.
-        elif not msg.startswith('***'):
-            user = user.split('!', 1)[0]
-            user = ansi.raw(user)
-            self.data_in(text=msg, type="msg", user=user, channel=channel)
-
-    def joined(self, channel):
-        """
-        Called when I finish joining a channel.
-        channel has the starting character (C{'#'}, C{'&'}, C{'!'}, or C{'+'})
-        intact.
-        """
-        # Return user list to Server bot.
-        self.get_nicklist()
-
-    def userJoined(self, user, channel):
-        """
-        Called when I see another user joining a channel.
-        """
-        # Send messasge to Server bot.
-        self.data_in(text="", type="joined", user="server", channel=channel,
-                     nicklist=[user])
-
-    def userRenamed(self, oldname, newname):
-        """
-        A user changed their name from oldname to newname.
-        """
-        # Send messasge to Server bot.
-        self.data_in(text="", type="renamed", oldname=oldname, newname=newname)
-
-    def userLeft(self, user, channel):
-        """
-        Called when I see another user leaving a channel.
-        """
-        # Send messasge to Server bot.
-        self.data_in(text="", type="left", user="server", channel=channel,
-                     nicklist=[user])
-
-##############################################################################
-#
-# Server Bot - IRC -> Evennia
-#
-##############################################################################
-
-
-class AccountBot(AccountBotOutputFunctions):
-    """
-
-    """
-
-    def execute_cmd(self, session=None, txt=None, **kwargs):
-        """
-        Take incoming data and make the appropriate action. This acts as a
-        CommandHandler of sorts for the various "type" of actions the Portal
-        bot returns to the Server. This is triggered by the bot_data_in
-        Inputfunc.
-
-        Args:
-            session (Session, optional): Session responsible for this
-                command. Note that this is the bot.
-            txt (str, optional):  Command string.
-        Kwargs:
-            user (str): The name of the user who sent the message.
-            channel (str): The name of channel the message was sent to.
-            nicklist (list, optional): Set if `type='nicklist'`. This is a
-                                       list of nicks returned by calling
-                                       the `self.get_nicklist`. It must look
-                                       for a list `self._nicklist_callers`
-                                       which will contain all callers waiting
-                                       for the nicklist.
-            timings (float, optional): Set if `type='ping'`. This is the return
-                                       (in seconds) of a ping request triggered
-                                       with `self.ping`. The return must look
-                                       for a list `self._ping_callers` which
-                                       will contain all callers waiting for
-                                       the ping return.
-            type (str): The type of response returned by the IRC bot.
-                        Including:
-                        "nicklist": Returned when first joining a channel.
-                        "joined": Returned when a new user joins a channel.
-                        "left": Returned when a user leaves a channel.
-                        "privmsg": Returned when the bot is directly messaged.
-                        "action": Returned when a user uses /me in IRC
-                        Everything else is assumed to be text to speak.
-        """
-        if kwargs["type"] == "nicklist":
-            """
-            Returned when first joining a channel.
-            """
-            # Send Nicklist to requesting players
-            if hasattr(self, "_nicklist_callers") and self._nicklist_callers:
-                chstr = "%s (%s:%s)" % (self.db.irc_channel,
-                                        self.db.irc_network, self.db.irc_port)
-                nicklist = ", ".join(sorted(kwargs["nicklist"],
-                                            key=lambda n: n.lower()))
-                for obj in self._nicklist_callers:
-                    obj.msg("Nicks at %s:\n %s" % (chstr, nicklist))
-                self._nicklist_callers = []
-                return
-
-            # Called by Session to initiate puppets.
+        if 'list' in self.switches:
+            # show all connections
+            ircbots = [bot for bot in AccountDB.objects.filter(db_is_bot=True, username__startswith="ircbot-")]
+            if ircbots:
+                from evennia.utils.evtable import EvTable
+                table = EvTable("|w#dbref|n", "|wbotname|n", "|wev-channel|n",
+                                "|wirc-channel|n", "|wSSL|n", maxwidth=_DEFAULT_WIDTH)
+                for ircbot in ircbots:
+                    ircinfo = "%s (%s:%s)" % (ircbot.db.irc_channel, ircbot.db.irc_network, ircbot.db.irc_port)
+                    table.add_row("#%i" % ircbot.id, ircbot.db.irc_botname, ircbot.db.ev_channel, ircinfo,
+                                  ircbot.db.irc_ssl)
+                return table
             else:
-                self.prep_listener()
+                return "No irc bots found."
 
-                # Prepare puppets
-                self.db.puppetdict = {}
-                for nick in kwargs["nicklist"]:
-                    self.prep_puppet(ansi.strip_ansi(nick))
+        if 'disconnect' in self.switches or 'remove' in self.switches or 'delete' in self.switches:
+            botname = "ircbot-%s" % self.lhs
+            matches = AccountDB.objects.filter(db_is_bot=True, username=botname)
+            dbref = utils.dbref(self.lhs)
+            if not matches and dbref:
+                # try dbref match
+                matches = AccountDB.objects.filter(db_is_bot=True, id=dbref)
+            if matches:
+                matches[0].delete()
+                self.msg("IRC connection destroyed.")
+            else:
+                self.msg("IRC connection/bot could not be removed, does it exist?")
+            return
 
-                # Hide stale puppets.
-                for puppet in search.search_tag(self.key + "-puppet"):
-                    if puppet.location is not None \
-                            and puppet not in self.db.puppetdict.values():
-                        puppet.move_to(None, to_none=True)
+        if not self.args or not self.rhs:
+            string = "Usage: @irc2chan[/switches] <evennia_channel> =" \
+                     " <ircnetwork> <port> <#irchannel> <botname>[:typeclass]"
+            self.msg(string)
+            return
+
+        channel = self.lhs
+        self.rhs = self.rhs.replace('#', ' ')  # to avoid Python comment issues
+        try:
+            irc_network, irc_port, irc_channel, irc_botname = \
+                [part.strip() for part in self.rhs.split(None, 4)]
+            irc_channel = "#%s" % irc_channel
+        except Exception:
+            string = "IRC bot definition '%s' is not valid." % self.rhs
+            self.msg(string)
+            return
+
+        botclass = None
+        if ":" in irc_botname:
+            irc_botname, botclass = [part.strip() for part in irc_botname.split(":", 2)]
+        botname = "ircbot-%s" % irc_botname
+        # If path given, use custom bot otherwise use default.
+        botclass = botclass if botclass else ServerBot
+        irc_ssl = "ssl" in self.switches
+
+        # create a new bot
+        bot = AccountDB.objects.filter(username__iexact=botname)
+        if bot:
+            # re-use an existing bot
+            bot = bot[0]
+            if not bot.is_bot:
+                self.msg("Account '%s' already exists and is not a bot." % botname)
                 return
-
-        elif kwargs["type"] == "ping":
-            """
-            Returned by the ping command.
-            """
-            if hasattr(self, "_ping_callers") and self._ping_callers:
-                chstr = "%s (%s:%s)" % (self.db.irc_channel,
-                                        self.db.irc_network, self.db.irc_port)
-                for obj in self._ping_callers:
-                    obj.msg("IRC ping return from %s took %ss." % (chstr, kwargs["timing"]))
-                self._ping_callers = []
-            return
-
-        elif kwargs["type"] == "joined":
-            """
-            Returned when a new user joins a channel - Prepare Puppet
-            """
-            for nick in kwargs["nicklist"]:
-                self.prep_puppet(ansi.strip_ansi(nick))
-            return
-
-        elif kwargs["type"] == "renamed":
-            """
-            Returned when IRC user changes nick.
-            """
-            puppetdict = self.db.puppetdict
-            newname = kwargs["newname"]
-            oldname = kwargs["oldname"]
-
-            # List of puppet objects matching newname.
-            puppetlist = [puppet for puppet in
-                          search.search_tag(self.key + "-puppet")
-                          if puppet.key == newname]
-
-            # Use an existing puppet.
-            if puppetlist:
-                # Set up new puppet
-                puppetdict[newname] = puppetlist[0]
-                if not puppetdict[newname].location == self.db.ev_location:
-                    puppetdict[newname].move_to(self.db.ev_location, quiet=True)
-                    self.db.ev_location.msg_contents(
-                        oldname + " has become " + newname)
-                # Pack up old puppet
-                self.db.puppetdict[oldname].move_to(None, to_none=True)
-                del self.db.puppetdict[oldname]
-
-            # Else recycle old puppet.
-            elif oldname in puppetdict:
-                print('Reusing puppetbot from puppetdict: ', oldname, puppetdict[oldname])
-                puppetdict[oldname].key = newname
-                puppetdict[newname] = puppetdict.pop(oldname)
-                self.db.ev_location.msg_contents(oldname + " has become " + newname)
-                return
-
-        elif kwargs["type"] == "left":
-            """
-            Returned when a user leaves a channel - Pack up puppet.
-            """
-            for nick in kwargs["nicklist"]:
-                nick = ansi.strip_ansi(nick)
-                if nick in self.db.puppetdict:
-                    self.db.puppetdict[nick].move_to(None, to_none=True)
-                    self.db.ev_location.msg_contents(self.db.puppetdict[nick].key + self.db.puppetexitmsg)
-                    del self.db.puppetdict[nick]
-            return
-
-        elif kwargs["type"] == "action":
-            """
-            Returned when a user uses /me in IRC
-            Causes in-game puppet to act out pose.
-            """
-            if ansi.strip_ansi(kwargs["user"]) in self.db.puppetdict:
-                self.db.puppetdict[ansi.strip_ansi(kwargs["user"])].execute_cmd("pose " + txt)
-            return
-
         else:
-            """
-            Everything else is assumed to be text to speak.
-            Cause the puppet to say the message.
-            """
-            if ansi.strip_ansi(kwargs["user"]) in self.db.puppetdict:
-                self.db.puppetdict[ansi.strip_ansi(kwargs["user"])].execute_cmd("say " + txt)
-            return
+            password = hashlib.md5(bytes(str(time.time()), 'utf-8')).hexdigest()[:11]
+            try:
+                bot = create.create_account(botname, None, password, typeclass=botclass)
+            except Exception as err:
+                self.msg("|rError, could not create the bot:|n '%s'." % err)
+                return
+        bot.start(ev_channel=channel, irc_botname=irc_botname, irc_channel=irc_channel,
+                  irc_network=irc_network, irc_port=irc_port, irc_ssl=irc_ssl)
+        self.msg("Connection created. Starting IRC bot.")
 
-##############################################################################
-#
-# SETUP FUNCTIONS
-#
-##############################################################################
+
+class ServerBot(Bot):
     """
-    
+    Bot for handling IRC connections.
     """
 
-    def start(self, ev_location=None, irc_botname=None, irc_channel=None,
-              irc_network=None, irc_port=None, irc_ssl=None):
+    def start(self, ev_channel=None, irc_botname=None, irc_channel=None, irc_network=None, irc_port=None, irc_ssl=None):
         """
         Start by telling the portal to start a new session.
-
         Args:
-            ev_location (obj): The Evennia location to connect to.
+            ev_channel (str): Key of the Evennia channel to connect to.
             irc_botname (str): Name of bot to connect to irc channel. If
                 not set, use `self.key`.
             irc_channel (str): Name of channel on the form `#channelname`.
             irc_network (str): URL of the IRC network, like `irc.freenode.net`.
             irc_port (str): Port number of the irc network, like `6667`.
             irc_ssl (bool): Indicates whether to use SSL connection.
-
         """
+        if not _IRC_ENABLED:
+            # the bot was created, then IRC was turned off. We delete
+            # ourselves (this will also kill the start script)
+            self.delete()
+            return
+
         global _SESSIONS
         if not _SESSIONS:
             from evennia.server.sessionhandler import SESSIONS as _SESSIONS
@@ -462,12 +180,18 @@ class AccountBot(AccountBotOutputFunctions):
         # if keywords are given, store (the BotStarter script
         # will not give any keywords, so this should normally only
         # happen at initialization)
-        if ev_location:
-            self.db.ev_location = ev_location
         if irc_botname:
             self.db.irc_botname = irc_botname
         elif not self.db.irc_botname:
             self.db.irc_botname = self.key
+        if ev_channel:
+            # connect to Evennia channel
+            channel = search.channel_search(ev_channel)
+            if not channel:
+                raise RuntimeError("Evennia Channel '%s' not found." % ev_channel)
+            channel = channel[0]
+            channel.connect(self)
+            self.db.ev_channel = channel
         if irc_channel:
             self.db.irc_channel = irc_channel
         if irc_network:
@@ -477,19 +201,6 @@ class AccountBot(AccountBotOutputFunctions):
         if irc_ssl:
             self.db.irc_ssl = irc_ssl
 
-        # Default bot values.
-        self.db.botdesc = "This is an Evennia IRC bot connecting from '%s'." % settings.SERVERNAME
-
-        self.db.puppetdict = {}
-        self.db.puppetprefix = ""
-        self.db.puppetsuffix = ""
-        self.db.puppetentrymsg = " appears in the room."
-        self.db.puppetexitmsg = " has left the room."
-        self.db.puppetdefaultdesc = "This is a Puppet."
-        self.db.puppetlastdesc = "This is a Puppet."
-        self.db.userignorelist = [self.db.irc_botname, "@"+self.db.irc_botname,
-                                  "@ChanServ", "ChanServ"]
-
         # instruct the server and portal to create a new session with
         # the stored configuration
         configdict = {"uid": self.dbid,
@@ -498,130 +209,359 @@ class AccountBot(AccountBotOutputFunctions):
                       "network": self.db.irc_network,
                       "port": self.db.irc_port,
                       "ssl": self.db.irc_ssl}
-        _SESSIONS.start_bot_session("typeclasses.ircpuppetbot.PortalBotFactory", configdict)
+        _SESSIONS.start_bot_session("features.temp.PortalBotFactory", configdict)
+
+    def at_msg_send(self, **kwargs):
+        """Shortcut here or we can end up in infinite loop"""
+        pass
+
+    def get_nicklist(self, caller):
+        """
+        Retrieve the nick list from the connected channel.
+        Args:
+            caller (Object or Account): The requester of the list. This will
+                be stored and echoed to when the irc network replies with the
+                requested info.
+        Notes: Since the return is asynchronous, the caller is stored internally
+            in a list; all callers in this list will get the nick info once it
+            returns (it is a custom OOB inputfunc option). The callback will not
+            survive a reload (which should be fine, it's very quick).
+        """
+        if not hasattr(self, "_nicklist_callers"):
+            self._nicklist_callers = []
+        self._nicklist_callers.append(caller)
+        super().msg(request_nicklist="")
+        return
 
     def ping(self, caller):
         """
         Fire a ping to the IRC server.
-
         Args:
             caller (Object or Account): The requester of the ping.
-
         """
         if not hasattr(self, "_ping_callers"):
             self._ping_callers = []
         self._ping_callers.append(caller)
-        super(AccountBot, self).msg(ping="")
+        super().msg(ping="")
 
     def reconnect(self):
         """
         Force a protocol-side reconnect of the client without
         having to destroy/recreate the bot "account".
-
         """
-        super(AccountBot, self).msg(reconnect="")
+        super().msg(reconnect="")
 
-    def prep_listener(self):
+    def msg(self, text=None, **kwargs):
         """
-        Obtain, or create, a listener object to be placed in the target room.
-
-        Triggered when first connecting to a IRC channel.
-        """
-        # Search for listener.
-        listener = search.object_search(self.key + "-listener",
-                                        typeclass=Listener)
-
-        if listener:
-            # Use an existing listener.
-            listener = listener[0]
-            listener.move_to(self.db.ev_location, quiet=True)
-            self.db.listener = listener
-            listener.db.bot = self
-        else:
-            # Create a new listener.
-            listener = create.create_object(Listener, key=self.key + "-listener",
-                                            location=self.db.ev_location)
-            self.db.listener = listener
-            listener.db.bot = self
-
-    def prep_puppet(self, nick):
-        """
-        This method will find an existing puppet or create a puppet of
-        a given name. It will then teleport the puppet to the location
-        and keep a reference to more easily facilitate passing commands to.
-
-        Used when first connecting to a IRC channel or a new user joins.
-
+        Takes text from connected channel (only).
         Args:
-            nick (str): The name of the user the puppet will represent.
+            text (str, optional): Incoming text from channel.
+        Kwargs:
+            options (dict): Options dict with the following allowed keys:
+                - from_channel (str): dbid of a channel this text originated from.
+                - from_obj (list): list of objects sending this text.
         """
-        # Ignore bot and automatic users.
-        if nick in self.db.userignorelist:
+        from_obj = kwargs.get("from_obj", None)
+        options = kwargs.get("options", None) or {}
+        if not self.ndb.ev_channel and self.db.ev_channel:
+            # cache channel lookup
+            self.ndb.ev_channel = self.db.ev_channel
+        if "from_channel" in options and text and self.ndb.ev_channel.dbid == options["from_channel"]:
+            if not from_obj or from_obj != [self]:
+                super().msg(channel=text)
+
+    def execute_cmd(self, session=None, txt=None, **kwargs):
+        """
+        Take incoming data and send it to connected channel. This is
+        triggered by the bot_data_in Inputfunc.
+        Args:
+            session (Session, optional): Session responsible for this
+                command. Note that this is the bot.
+            txt (str, optional):  Command string.
+        Kwargs:
+            user (str): The name of the user who sent the message.
+            channel (str): The name of channel the message was sent to.
+            type (str): Nature of message. Either 'msg', 'action', 'nicklist' or 'ping'.
+            nicklist (list, optional): Set if `type='nicklist'`. This is a list of nicks returned by calling
+                the `self.get_nicklist`. It must look for a list `self._nicklist_callers`
+                which will contain all callers waiting for the nicklist.
+            timings (float, optional): Set if `type='ping'`. This is the return (in seconds) of a
+                ping request triggered with `self.ping`. The return must look for a list
+                `self._ping_callers` which will contain all callers waiting for the ping return.
+        """
+        if kwargs["type"] == "nicklist":
+            # the return of a nicklist request
+            if hasattr(self, "_nicklist_callers") and self._nicklist_callers:
+                chstr = "%s (%s:%s)" % (self.db.irc_channel, self.db.irc_network, self.db.irc_port)
+                nicklist = ", ".join(sorted(kwargs["nicklist"], key=lambda n: n.lower()))
+                for obj in self._nicklist_callers:
+                    obj.msg("Nicks at %s:\n %s" % (chstr, nicklist))
+                self._nicklist_callers = []
             return
 
-        puppetdict = self.db.puppetdict
+        elif kwargs["type"] == "ping":
+            # the return of a ping
+            if hasattr(self, "_ping_callers") and self._ping_callers:
+                chstr = "%s (%s:%s)" % (self.db.irc_channel, self.db.irc_network, self.db.irc_port)
+                for obj in self._ping_callers:
+                    obj.msg("IRC ping return from %s took %ss." % (chstr, kwargs["timing"]))
+                self._ping_callers = []
+            return
 
-        # List of puppet objects with matching name.
-        puppetlist = [puppet for puppet in
-                      search.search_tag(self.key + "-puppet")
-                      if puppet.key == self.db.puppetprefix + nick + self.db.puppetsuffix]
+        elif kwargs["type"] == "privmsg":
+            # A private message to the bot - a command.
+            user = kwargs["user"]
 
-        # Use an existing puppet.
-        if puppetlist:
-            puppetdict[nick] = puppetlist[0]
-            if not puppetdict[nick].location == self.db.ev_location:
-                puppetdict[nick].move_to(self.db.ev_location, quiet=True)
-                self.db.ev_location.msg_contents(puppetdict[nick].key + self.db.puppetentrymsg)
-
-        # Create a new puppet.
+            if txt.lower().startswith("who"):
+                # return server WHO list (abbreviated for IRC)
+                global _SESSIONS
+                if not _SESSIONS:
+                    from evennia.server.sessionhandler import SESSIONS as _SESSIONS
+                whos = []
+                t0 = time.time()
+                for sess in _SESSIONS.get_sessions():
+                    delta_cmd = t0 - sess.cmd_last_visible
+                    delta_conn = t0 - session.conn_time
+                    account = sess.get_account()
+                    whos.append("%s (%s/%s)" % (utils.crop("|w%s|n" % account.name, width=25),
+                                                utils.time_format(delta_conn, 0),
+                                                utils.time_format(delta_cmd, 1)))
+                text = "Who list (online/idle): %s" % ", ".join(sorted(whos, key=lambda w: w.lower()))
+            elif txt.lower().startswith("about"):
+                # some bot info
+                text = "This is an Evennia IRC bot connecting from '%s'." % settings.SERVERNAME
+            else:
+                text = "I understand 'who' and 'about'."
+            super().msg(privmsg=((text,), {"user": user}))
         else:
-            puppetdict[nick] = create.create_object(Puppet, key=self.db.puppetprefix + nick + self.db.puppetsuffix,
-                                                    location=self.db.ev_location)
-            puppetdict[nick].db.nick = nick
-            puppetdict[nick].db.desc = self.db.puppetdefaultdesc
-            puppetdict[nick].tags.add(self.key + "-puppet")
-            puppetdict[nick].db.bot = self
-            self.db.ev_location.msg_contents(puppetdict[nick].key + self.db.puppetentrymsg)
-        return
+            # something to send to the main channel
+            if kwargs["type"] == "action":
+                # An action (irc pose)
+                text = "%s@%s %s" % (kwargs["user"], kwargs["channel"], txt)
+            else:
+                # msg - A normal channel message
+                text = "%s@%s: %s" % (kwargs["user"], kwargs["channel"], txt)
 
-    def delete(self, *args, **kwargs):
+            if not self.ndb.ev_channel and self.db.ev_channel:
+                # cache channel lookup
+                self.ndb.ev_channel = self.db.ev_channel
+            if self.ndb.ev_channel:
+                self.ndb.ev_channel.msg(text, senders=self)
+
+
+class PortalBot(irc.IRCClient, Session):
+    """
+    An IRC bot that tracks activity in a channel as well
+    as sends text to it when prompted
+    """
+    lineRate = 1
+
+    # assigned by factory at creation
+
+    nickname = None
+    logger = None
+    factory = None
+    channel = None
+    sourceURL = "http://code.evennia.com"
+
+    def signedOn(self):
         """
-        Deletes the bot permanently.
-
-        Notes:
-            `*args` and `**kwargs` are passed on to the base delete
-             mechanism (these are usually not used).
-
+        This is called when we successfully connect to the network. We
+        make sure to now register with the game as a full session.
         """
-        # Delete listener
-        if self.db.listener:
-            self.db.listener.delete()
+        self.join(self.channel)
+        self.stopping = False
+        self.factory.bot = self
+        address = "%s@%s" % (self.channel, self.network)
+        self.init_session("ircbot", address, self.factory.sessionhandler)
+        # we link back to our bot and log in
+        self.uid = int(self.factory.uid)
+        self.logged_in = True
+        self.factory.sessionhandler.connect(self)
+        logger.log_info("IRC bot '%s' connected to %s at %s:%s." % (self.nickname, self.channel,
+                                                                    self.network, self.port))
 
-        # Delete puppets
-        puppetlist = [puppet for puppet in
-                      search.search_tag(self.key + "-puppet")]
-        for puppet in puppetlist:
-            puppet.delete()
+    def disconnect(self, reason=""):
+        """
+        Called by sessionhandler to disconnect this protocol.
+        Args:
+            reason (str): Motivation for the disconnect.
+        """
+        self.sessionhandler.disconnect(self)
+        self.stopping = True
+        self.transport.loseConnection()
 
-        # Delete bot
-        self.db.ev_location.msg_contents("Bot commencing shut-down process.")
-        super(AccountBot, self).delete(*args, **kwargs)
+    def at_login(self):
+        pass
+
+    def privmsg(self, user, channel, msg):
+        """
+        Called when the connected channel receives a message.
+        Args:
+            user (str): User name sending the message.
+            channel (str): Channel name seeing the message.
+            msg (str): The message arriving from channel.
+        """
+        if channel == self.nickname:
+            # private message
+            user = user.split('!', 1)[0]
+            self.data_in(text=msg, type="privmsg", user=user, channel=channel)
+        elif not msg.startswith('***'):
+            # channel message
+            user = user.split('!', 1)[0]
+            user = ansi.raw(user)
+            self.data_in(text=msg, type="msg", user=user, channel=channel)
+
+    def action(self, user, channel, msg):
+        """
+        Called when an action is detected in channel.
+        Args:
+            user (str): User name sending the message.
+            channel (str): Channel name seeing the message.
+            msg (str): The message arriving from channel.
+        """
+        if not msg.startswith('**'):
+            user = user.split('!', 1)[0]
+            self.data_in(text=msg, type="action", user=user, channel=channel)
+
+    def get_nicklist(self):
+        """
+        Retrieve name list from the channel. The return
+        is handled by the catch methods below.
+        """
+        if not self.nicklist:
+            self.sendLine("NAMES %s" % self.channel)
+
+    def irc_RPL_NAMREPLY(self, prefix, params):
+        """"Handles IRC NAME request returns (nicklist)"""
+        channel = params[2].lower()
+        if channel != self.channel.lower():
+            return
+        self.nicklist += params[3].split(' ')
+
+    def irc_RPL_ENDOFNAMES(self, prefix, params):
+        """Called when the nicklist has finished being returned."""
+        channel = params[1].lower()
+        if channel != self.channel.lower():
+            return
+        self.data_in(text="", type="nicklist", user="server", channel=channel, nicklist=self.nicklist)
+        self.nicklist = []
+
+    def pong(self, user, time):
+        """
+        Called with the return timing from a PING.
+        Args:
+            user (str): Name of user
+            time (float): Ping time in secs.
+        """
+        self.data_in(text="", type="ping", user="server", channel=self.channel, timing=time)
+
+    def data_in(self, text=None, **kwargs):
+        """
+        Data IRC -> Server.
+        Kwargs:
+            text (str): Ingoing text.
+            kwargs (any): Other data from protocol.
+        """
+        self.sessionhandler.data_in(self, bot_data_in=[parse_irc_to_ansi(text), kwargs])
+
+    def send_channel(self, *args, **kwargs):
+        """
+        Send channel text to IRC channel (visible to all). Note that
+        we don't handle the "text" send (it's rerouted to send_default
+        which does nothing) - this is because the IRC bot is a normal
+        session and would otherwise report anything that happens to it
+        to the IRC channel (such as it seeing server reload messages).
+        Args:
+            text (str): Outgoing text
+        """
+        text = args[0] if args else ""
+        if text:
+            text = parse_ansi_to_irc(text)
+            self.say(self.channel, text)
+
+    def send_privmsg(self, *args, **kwargs):
+        """
+        Send message only to specific user.
+        Args:
+            text (str): Outgoing text.
+        Kwargs:
+            user (str): the nick to send
+                privately to.
+        """
+        text = args[0] if args else ""
+        user = kwargs.get("user", None)
+        if text and user:
+            text = parse_ansi_to_irc(text)
+            self.msg(user, text)
+
+    def send_request_nicklist(self, *args, **kwargs):
+        """
+        Send a request for the channel nicklist. The return (handled
+        by `self.irc_RPL_ENDOFNAMES`) will be sent back as a message
+        with type `nicklist'.
+        """
+        self.get_nicklist()
+
+    def send_ping(self, *args, **kwargs):
+        """
+        Send a ping. The return (handled by `self.pong`) will be sent
+        back as a message of type 'ping'.
+        """
+        self.ping(self.nickname)
+
+    def send_reconnect(self, *args, **kwargs):
+        """
+        The server instructs us to rebuild the connection by force,
+        probably because the client silently lost connection.
+        """
+        self.factory.reconnect()
+
+    def send_default(self, *args, **kwargs):
+        """
+        Ignore other types of sends.
+        """
+        pass
 
 
-class PortalBotFactory(IRCBotFactory):
+class PortalBotFactory(protocol.ReconnectingClientFactory):
     """
     Creates instances of IRCBot, connecting with a staggered
     increase in delay
-
     """
+    # scaling reconnect time
+    initialDelay = 1
+    factor = 1.5
+    maxDelay = 60
+
+    def __init__(self, sessionhandler, uid=None, botname=None, channel=None, network=None, port=None, ssl=None):
+        """
+        Storing some important protocol properties.
+        Args:
+            sessionhandler (SessionHandler): Reference to the main Sessionhandler.
+        Kwargs:
+            uid (int): Bot user id.
+            botname (str): Bot name (seen in IRC channel).
+            channel (str): IRC channel to connect to.
+            network (str): Network address to connect to.
+            port (str): Port of the network.
+            ssl (bool): Indicates SSL connection.
+        """
+        self.sessionhandler = sessionhandler
+        self.uid = uid
+        self.nickname = str(botname)
+        self.channel = str(channel)
+        self.network = str(network)
+        self.port = port
+        self.ssl = ssl
+        self.bot = None
+        self.nicklists = {}
 
     def buildProtocol(self, addr):
         """
         Build the protocol and assign it some properties.
-
         Args:
             addr (str): Not used; using factory data.
-
         """
         protocol = PortalBot()
         protocol.factory = self
@@ -633,161 +573,56 @@ class PortalBotFactory(IRCBotFactory):
         protocol.nicklist = []
         return protocol
 
-##############################################################################
-#
-# IRC2Puppet Commands
-#
-##############################################################################
+    def startedConnecting(self, connector):
+        """
+        Tracks reconnections for debugging.
+        Args:
+            connector (Connector): Represents the connection.
+        """
+        logger.log_info("(re)connecting to %s" % self.channel)
 
+    def clientConnectionFailed(self, connector, reason):
+        """
+        Called when Client failed to connect.
+        Args:
+            connector (Connection): Represents the connection.
+            reason (str): The reason for the failure.
+        """
+        self.retry(connector)
 
-class BotCmdSet(CmdSet):
-    """
-    Holds commands used by the IRCPuppetBot.
-    Import this to accounts command set to gain access to Puppet bot commands.
-    """
-    def at_cmdset_creation(self):
-        self.add(CmdPuppetBot())
+    def clientConnectionLost(self, connector, reason):
+        """
+        Called when Client loses connection.
+        Args:
+            connector (Connection): Represents the connection.
+            reason (str): The reason for the failure.
+        """
+        if not (self.bot or (self.bot and self.bot.stopping)):
+            self.retry(connector)
 
+    def reconnect(self):
+        """
+        Force a reconnection of the bot protocol. This requires
+        de-registering the session and then reattaching a new one,
+        otherwise you end up with an ever growing number of bot
+        sessions.
+        """
+        self.bot.stopping = True
+        self.bot.transport.loseConnection()
+        self.sessionhandler.server_disconnect(self.bot)
+        self.start()
 
-class CmdPuppetBot(COMMAND_DEFAULT_CLASS):
-    """
-    Link an Evennia location to an external IRC channel.
-    The location will be populated with puppet characters for each user in IRC.
-
-    Usage:
-        @puppetbot # lists all bots currently active.
-        @puppetbot irc.freenode.net 6667 #irctest mud-bot
-        @puppetbot <ircnetwork> <port> <#irchannel> <botname>
-        @puppetbot/delete botname|#dbid
-
-    Switches:
-        /ping       - Fire a ping to the IRC server.
-        /who
-        /delete     - this will delete the bot and remove the irc connection
-                      to the channel. Requires the botname or #dbid as input.
-        /reconnect  - Force a protocol-side reconnect of the client without
-                      having to destroy/recreate the bot "account".
-        /reload     - Delete all puppets, recreates puppets from new user list.
-
-        /ignore     - Toggle ignore IRC user. Neither puppet or msgs will be visible.
-    """
-
-    key = "@puppetbot"
-    locks = "cmd:serversetting(IRC_ENABLED) and pperm(Immortals)"
-    help_category = "Comms"
-
-    def func(self):
-        """Setup the irc-channel mapping"""
-
-        if not settings.IRC_ENABLED:
-            string = "IRC is not enabled. Activate it in game/settings.py."
-            self.msg(string)
-            return
-
-        # If no args: list bots.
-        if not self.args:
-            # show all connections
-            ircbots = [bot for bot in
-                       AccountDB.objects.filter(db_is_bot=True,
-                                                username__startswith="ircbot-")]
-            if ircbots:
-                from evennia.utils.evtable import EvTable
-                table = EvTable("|w#dbref|n", "|wbotname|n",
-                                "|wev-channel/location|n",
-                                "|wirc-channel|n", "|wSSL|n",
-                                maxwidth=_DEFAULT_WIDTH)
-                for ircbot in ircbots:
-                    ircinfo = "%s (%s:%s)" % (
-                        ircbot.db.irc_channel, ircbot.db.irc_network,
-                        ircbot.db.irc_port)
-                    table.add_row("#%i" % ircbot.id, ircbot.db.irc_botname,
-                                  ircbot.attributes.get("ev_channel", ircbot.db.ev_location.key),
-                                  ircinfo, ircbot.db.irc_ssl)
-                self.msg(table)
-                self.msg("Use 'help @puppetbot' for more infomation.")
+    def start(self):
+        """
+        Connect session to sessionhandler.
+        """
+        if self.port:
+            if self.ssl:
+                try:
+                    from twisted.internet import ssl
+                    service = reactor.connectSSL(self.network, int(self.port), self, ssl.ClientContextFactory())
+                except ImportError:
+                    logger.log_err("To use SSL, the PyOpenSSL module must be installed.")
             else:
-                self.msg("No irc bots found.")
-            return
-
-        # Switch options available only if valid bot is given.
-        if self.switches:
-            botname = "ircbot-%s" % self.lhs
-            matches = AccountDB.objects.filter(db_is_bot=True, username=botname)
-            dbref = utils.dbref(self.lhs)
-            if not matches and dbref:
-                # try dbref match
-                matches = AccountDB.objects.filter(db_is_bot=True, id=dbref)
-            if not matches:
-                self.msg("No valid bot given. Consult 'help @puppetbot'")
-                return
-
-            # Puppetbot/delete <bot> - Delete bot.
-            if any(i in ['disconnect', 'remove', 'delete'] for i in self.switches):
-                matches[0].delete()
-                self.msg("IRC link/bot destroyed.")
-                return
-
-            # Puppetbot/ping <bot> - ping bot.
-            if "ping" in self.switches:
-                matches[0].ping(self.caller)
-                self.msg("Pinging " + self.lhs)
-                return
-
-            # Puppetbot/who <bot> - Get IRC user list..
-            if "who" in self.switches:
-                # retrieve user list. The bot must handles the echo since it's
-                # an asynchronous call.
-                self.caller.msg("Requesting nicklist from %s (%s:%s)." % (
-                                matches[0].db.irc_channel,
-                                matches[0].db.irc_network,
-                                matches[0].db.irc_port))
-                matches[0].get_nicklist(self.caller)
-                return
-
-            # Puppetbot/reconnect <bot> - reconnect bot.
-            if "reconnect" in self.switches:
-                matches[0].reconnect()
-                self.msg("Reconnecting " + self.lhs)
-                return
-
-            # Puppetbot/reload <bot> - Delete all bots, recreates bots from new user list.
-            if "reload" in self.switches:
-                matches[0].db.ev_location.msg_contents("Puppet reload in progress.")
-                puppetlist = [puppet for puppet in search.search_tag(matches[0].key + "-puppet")]
-                for puppet in puppetlist:
-                    puppet.delete()
-                matches[0].get_nicklist()
-                return
-
-        # Create Bot.
-        location = self.caller.location
-        self.args = self.args.replace('#', ' ')  # Avoid Python comment issues
-        try:
-            irc_network, irc_port, irc_channel, irc_botname = \
-                       [part.strip() for part in self.args.split(None, 4)]
-            irc_channel = "#%s" % irc_channel
-        except Exception:
-            string = "IRC bot definition '%s' is not valid." % self.args
-            self.msg(string)
-            return
-
-        botname = "ircbot-%s" % irc_botname
-        # create a new bot
-        bot = AccountDB.objects.filter(username__iexact=botname)
-        if bot:
-            # re-use an existing bot
-            bot = bot[0]
-            if not bot.is_bot:
-                self.msg("'%s' already exists and is not a bot." % botname)
-                return
-        else:
-            try:
-                bot = create.create_account(botname, None, None,
-                                            typeclass=AccountBot)
-            except Exception as err:
-                self.msg("|rError, could not create the bot:|n '%s'." % err)
-                return
-        bot.start(ev_location=location, irc_botname=irc_botname,
-                  irc_channel=irc_channel, irc_network=irc_network,
-                  irc_port=irc_port)
-        self.msg("Connection created. Starting IRC bot.")
+                service = internet.TCPClient(self.network, int(self.port), self)
+            self.sessionhandler.portal.services.addService(service)

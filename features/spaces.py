@@ -194,16 +194,6 @@ class PlaceCommand(MuxCommand):
     """
     obj = None
 
-    def message_occupants(self, msg):
-        """
-
-        """
-        for occupant in self.obj.db.occupants:
-            if occupant.location == self.obj.location:
-                occupant.msg(msg)
-            else:
-                self.obj.db.occupants.remove(occupant)
-
     def func(self):
         """
 
@@ -220,14 +210,14 @@ class PlaceCommand(MuxCommand):
             if caller not in occupants:
                 self.msg("To contribute to the conversation you must join "
                          "the " + place.key)
-                self.message_occupants(caller.key + " attempts to speak "
-                                       "from elsewhere but his words are not "
-                                       "heard.")
+                place.message_occupants(caller.key + " attempts to speak "
+                                        "from elsewhere but his words are not "
+                                        "heard.")
                 return
 
             # Send message to occupants.
             msg = caller.key + " says to the group, '" + self.args + "'."
-            self.message_occupants(msg)
+            place.message_occupants(msg)
 
         elif 'join' in self.switches:
             """
@@ -236,12 +226,12 @@ class PlaceCommand(MuxCommand):
             # Add caller to occupants and alert occupants.
             occupants.append(caller)
             caller.msg("You have joined the " + place.key)
-            self.message_occupants(caller.key + "has joined the " + place.key)
+            place.message_occupants(caller.key + "has joined the " + place.key)
 
             # Send message to occupants.
             if self.args:
                 msg = caller.key + " says to the group, '" + self.args + "'."
-                self.message_occupants(msg)
+                place.message_occupants(msg)
 
         elif 'leave' in self.switches:
             """
@@ -250,12 +240,12 @@ class PlaceCommand(MuxCommand):
             # Send message to occupants.
             if self.args:
                 msg = caller.key + " says to the group, '" + self.args + "'."
-                self.message_occupants(msg)
+                place.message_occupants(msg)
 
             # Remove caller from occupants and alert occupants.
             occupants.remove(caller)
             caller.msg("You have left the " + place.key)
-            self.message_occupants(caller.key + "has left the " + place.key)
+            place.message_occupants(caller.key + "has left the " + place.key)
 
 
 class PlaceObj(Object):
@@ -272,6 +262,16 @@ class PlaceObj(Object):
     # Helper classes and methods to implement the Exit. These need not
     # be overloaded unless one want to change the foundation for how
     # Exits work. See the end of the class for hook methods to overload.
+
+    def message_occupants(self, msg):
+        """
+
+        """
+        for occupant in self.db.occupants:
+            if occupant.location == self.location:
+                occupant.msg(msg)
+            else:
+                self.db.occupants.remove(occupant)
 
     def create_place_cmdset(self, exidbobj):
         """
