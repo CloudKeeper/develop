@@ -245,23 +245,24 @@ class PortalBot(IRCBot):
         Called when I see another user joining a channel.
         """
         # Send messasge to Server bot.
-        self.data_in(text="", type="joined", user="server", channel=channel,
-                     nicklist=[user])
+        self.data_in(text="joined", type="joined", user="server",
+                     channel=channel, nicklist=[user])
 
     def userRenamed(self, oldname, newname):
         """
         A user changed their name from oldname to newname.
         """
         # Send messasge to Server bot.
-        self.data_in(text="", type="renamed", oldname=oldname, newname=newname)
+        self.data_in(text="renamed", type="renamed", oldname=oldname,
+                     newname=newname)
 
     def userLeft(self, user, channel):
         """
         Called when I see another user leaving a channel.
         """
         # Send messasge to Server bot.
-        self.data_in(text="", type="left", user="server", channel=channel,
-                     nicklist=[user])
+        self.data_in(text="left", type="left", user="server",
+                     channel=channel, nicklist=[user])
 
 ##############################################################################
 #
