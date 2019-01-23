@@ -55,11 +55,38 @@ NOTES:
 from typeclasses.objects import Object
 from evennia.accounts.bots import Bot
 
+
+##############################################################################
+#
+# Remote Typeclasses
+#
+##############################################################################
+
+
+class RemoteCharacter(FILL IN WITH ALL CLASSES):
+    """
+    Collects Mixins to a single reference typeclass
+    """
+    
+    pass
+
+    
+class RemoteAccount(FILL IN WITH ALL CLASSES)):
+    """
+
+    """
+
+    pass
+   
+
 ##############################################################################
 #
 # Allow Remote Control of Characters 
 #
 ##############################################################################
+
+command class
+basically send string to execute command
 
 class CharRemoteControl(DefaultCharacter):
     """
@@ -71,6 +98,15 @@ class CharRemoteControl(DefaultCharacter):
         At creation we hide the 'listener' from view.
         """
         self.db.remote_account = None
+        
+    def remote_control(self):
+        """
+        """
+        # command checks lock checking
+        Set remote about attribute
+        create command
+        give caller command set
+        
 
 ##############################################################################
 #
@@ -194,61 +230,3 @@ class AccMsgRouting(DefaultAccount):
 
         super(RemoteAccount, self).msg(text, from_obj, session, options,
                                        **kwargs)
-                                         
-##############################################################################
-#
-# Remote Typeclasses
-#
-##############################################################################
-
-
-class RemoteCharacter(FILL IN WITH ALL CLASSES):
-    """
-    Collects Mixins to a single reference typeclass
-    """
-    
-    pass
-
-    
-class RemoteAccount(DefaultAccount):
-    """
-
-    """
-
-    def at_account_creation(self):
-        """
-        This is called once, the very first time the account is created
-        (i.e. first time they register with the game). It's a good
-        place to store attributes all accounts should have, like
-        configuration values etc.
-        """
-        super(RemoteAccount, self).at_account_creation()
-
-        # Create message history to compare against and remove spamming.
-        self.attribute.add("msg_history", [None, None])
-
-    def msg(self, text=None, from_obj=None, session=None, options=None, **kwargs):
-        """
-        Evennia -> User
-        This is the main route for sending data back to the user from the
-        server.
-        Args:
-            text (str, optional): text data to send
-            from_obj (Object or Account or list, optional): Object sending. If given, its
-                at_msg_send() hook will be called. If iterable, call on all entities.
-            session (Session or list, optional): Session object or a list of
-                Sessions to receive this send. If given, overrules the
-                default send behavior for the current
-                MULTISESSION_MODE.
-            options (list): Protocol-specific options. Passed on to the protocol.
-        Kwargs:
-            any (dict): All other keywords are passed on to the protocol.
-        """
-        if text in self.db.msg_history:
-            return
-        self.db.msg_history.append(text)
-        self.db.msg_history.pop(0)
-
-        super(RemoteAccount, self).msg(text, from_obj, session, options,
-                                       **kwargs)
-
