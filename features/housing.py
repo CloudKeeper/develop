@@ -63,8 +63,8 @@ the character allowed_rooms = ObjectDB.objects.get(db_tag=str(char.id))
 might want to do it a bit better)
 
 <vincent-lg>
-ObjectDB.objects.filter(db_tags__db_key=str(char.id)).filter(db_tags__db_categorh="whatever
-category")
+ObjectDB.objects.filter(db_tags__db_key=str(char.id)).filter(
+db_tags__db_categorh="whatevercategory")
 
 <vincent-lg> to get all the tags of key char ID and of categories either 1 or 2
 or 3, you'll need to get a Q() object and work from that.
