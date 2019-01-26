@@ -49,7 +49,12 @@ creates character
 NOTES:
 -Switch to turn off going to None
 -Stops spam
+-Have custom header, border or something to show it's from  a remote.
 # -----------------------------------------------------------------------------
+
+In settings add max characters greater than 1:
+    MAX_NR_CHARACTERS = 1
+
 """
 
 from typeclasses.objects import Object
@@ -85,8 +90,56 @@ class RemoteAccount(FILL IN WITH ALL CLASSES)):
 #
 ##############################################################################
 
-command class
-basically send string to execute command
+class BotCmdSet(CmdSet):
+    """
+    Holds commands used by the IRCPuppetBot.
+    Import this to accounts command set to gain access to Puppet bot commands.
+    """
+    def at_cmdset_creation(self):
+        self.add(CmdRemote())
+
+
+class CmdRemote(COMMAND_DEFAULT_CLASS):
+    """
+
+    """
+    key = "@remote"
+    locks = "cmd:all()"
+    help_category = "General"
+
+    def func(self):
+        """
+        Creation and Deleting completed by @charcreate, @chardelete.
+        Puppeting primary Character completed with @ic
+        """
+
+        # If no args: list available puppets
+        if not self.args:
+            self.msg(self.account.at_look(target=self.playable,
+                                          session=self.session))
+
+        # # Switch options available only if valid bot is given.
+        # if self.switches:
+        #
+        #     # @remote/access <bot> -
+        #     if "access" in self.switches:
+
+        # Remote Puppet Character.
+
+        # Get available character
+        remote = search.object_search(self.args,
+                            candidates=self.account.db._playable_characters)
+        if not remote:
+            self.msg("No Playable Characters by that name.")
+            return
+
+        if remote[0].has_account or remote[0].db.remote_account:
+            self.msg("Character is currently being used.")
+            return
+
+        # Remote Character
+
+
 
 class CharRemoteControl(DefaultCharacter):
     """
