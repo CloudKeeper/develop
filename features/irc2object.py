@@ -59,7 +59,7 @@ COMMAND_DEFAULT_CLASS = utils.class_from_module(settings.COMMAND_DEFAULT_CLASS)
 ##############################################################################
 
 
-class Listener(Object):
+class Radio(Object):
     """
     Evennia to IRC Path:
     **Listener Object** -> AccountBot -> PortalBot -> IRC

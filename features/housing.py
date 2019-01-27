@@ -182,3 +182,21 @@ But this solution is still not as searchable as using a tag (as you point out).
 Griatch
 
 """
+
+"""
+1.
+Central Room
+    Buy rooms with an NPC or command
+    
+Apartment rooms
+    They have a tag to indicate connection to central room.
+
+Characters
+    They have a permissions tag with a category indicating level.
+
+>Check if character has permissions
+    Run check on player 
+
+>Houses you own
+    Check permission for owner
+"""
