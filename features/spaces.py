@@ -3,6 +3,7 @@ Spaces - NEEDS TESTING
 
 FEAATURES:
 -SET A PLAYER LIMIT
+-look at place give you a list of the occupants.
 
 -Character Mixin
 -Exit Obj
@@ -41,9 +42,6 @@ wanted to make it more complex, the 'tabletalk' command could add a new cmdset
 to you with new implementations of say/emote etc that redirects outputs only to
 your location.
 """
-###############################################################################
-# CmdPlace - Place Listing/Describing/Creating/Deleting Command.
-###############################################################################
 from evennia.commands.default.muxcommand import MuxCommand
 from evennia.commands.cmdset import CmdSet
 from evennia.utils import evtable, create
@@ -52,61 +50,35 @@ from django.conf import settings
 
 _DEFAULT_WIDTH = settings.CLIENT_DEFAULT_WIDTH
 
+###############################################################################
+#
+# CmdPlace - Create/List Chat Places
+#
+###############################################################################
 
 class CmdPlace(MuxCommand):
     """
-    create new objects
+    Create places to share private conversations within a location.
+    Deleting and Describing Places after creation is handled by the 
+    @del and @desc respectively.
+    
     Usage:
-        @place/create <objname>[, alias, alias...][= desc]"
+        @place[/create] <objname>[, alias, alias...][= desc]
 
-    Command Description
-        @place
     """
     key = "@place"
-    switch_options = ("create", "desc", "del")
+    switch_options = ("create")
     help_category = "Building"
     locks = "cmd:perm(create) or perm(Builder)"
 
     def func(self):
         """Implement function"""
-        # Prepare common values.
         caller = self.caller
-        places = [place for place in caller.location.content
-                  if place.is_typeclass(PlaceObj)]
 
-        if not self.switches:
-            """
-            
-            """
-            # Handle no Places located.
-            if not places:
-                self.msg("No channels available.")
-                return
-
-            # Organise EvTable for display
-            table = evtable.EvTable("|wplace|n", "|waliases|n",
-                                    "|wdescription|n", maxwidth=_DEFAULT_WIDTH)
-            for place in places:
-                clower = place.key.lower()
-                aliases = place.aliases.all()
-                table.add_row(*["%s%s" % clower,
-                                "%s" % ",".join(aliases),
-                                place.db.desc])
-            table.reformat_column(0, width=9)
-            table.reformat_column(3, width=14)
-
-            # Send table to player
-            self.msg("\nAvailable channels:\n%s" % table)
-
-        elif 'create' in self.switches:
-            """
-            create new objects
-            Usage:
-                @place/create <objname>[, alias, alias...][= desc]
-
-            Command Description
-                @place/create fireplace, fire
-            """
+        # ---------------------------------------------------------------------
+        # @place/create <objname>[, alias, alias...][= desc]
+        if 'create' in self.switches:
+        
             # Handle improper use.
             if not self.args:
                 string = "Usage: @place/create <objname>[, alias, alias...][= desc]"
@@ -118,6 +90,11 @@ class CmdPlace(MuxCommand):
             aliases = self.lhslist
             desc = self.rhs
 
+            # Prevent repeats
+            if caller.search(key):
+                caller.msg("Object with name '%s' already exists." % key)
+                return
+            
             # Create Object
             place = create.create_object(PlaceObj, key, caller.location,
                                          aliases=aliases)
@@ -131,99 +108,58 @@ class CmdPlace(MuxCommand):
                 string = "You create a new Place: %s."
                 string = string % place.name
             caller.msg(string)
+            return
+        # ---------------------------------------------------------------------
 
-        elif 'desc' in self.switches:
-            """
+        # @place <Ignored>  # Return list of places at current location. 
+        places = [place for place in caller.location.contents
+                      if place.is_typeclass(PlaceObj)]
+        if not places:
+            caller.msg("No channels available.")
+            return
 
-            """
-            # Handle improper use.
-            if not self.args:
-                string = "Usage: @place/desc <objname> = desc"
-                caller.msg(string)
-                return
+        # If Places located: Organise EvTable for display
+        table = evtable.EvTable("|wplace|n", "|waliases|n",
+                                "|wdescription|n", maxwidth=_DEFAULT_WIDTH)
+        for place in places:
+            clower = place.key.lower()
+            aliases = place.aliases.all()
+            table.add_row(*["%s%s" % clower,
+                            "%s" % ",".join(aliases),
+                            place.db.desc])
+        table.reformat_column(0, width=9)
+        table.reformat_column(3, width=14)
 
-            # Parse arguments
-            place = caller.search(self.lhs, candidates=places)
-            if not place:
-                string = "Target '" + self.lhs + "' could not be located."
-                caller.msg(string)
-                return
-            desc = self.rhs or ''
-
-            # Update object description.
-            if place.access(self.caller, 'control') or \
-                    place.access(self.caller, 'edit'):
-                place.db.desc = desc
-                caller.msg("The description was set on %s." %
-                           place.get_display_name(caller))
-            else:
-                caller.msg("You don't have permission to edit the description "
-                           "of %s." % place.key)
-
-        elif 'del' in self.switches:
-            """
-
-            """
-            # Handle improper use.
-            if not self.args:
-                string = "Usage: @place/desc <objname> = desc"
-                caller.msg(string)
-                return
-
-            # Parse arguments
-            place = caller.search(self.lhs, candidates=places)
-            if not place:
-                string = "Target '" + self.lhs + "' could not be located."
-                caller.msg(string)
-                return
-
-            # Delete object.
-            if place.access(self.caller, 'control') or \
-                    place.access(self.caller, 'edit'):
-                place.delete()
-                caller.msg("The description was set on %s." %
-                           place.get_display_name(caller))
-            else:
-                caller.msg("You don't have permission to delete the "
-                           "place: %s." % place.key)
-
-
+        # Send table to player
+        caller.msg("\nAvailable channels:\n%s" % table)
+            
+            
 class PlaceCommand(MuxCommand):
     """
+    Speak only to players who have 'joined' the 'Place' object.
+    
+    Usage:
+        place[/switch] <message>
+        
+    Swtich:
+        /join - Recieve messages being spoken in the 'place'.
+        /leave - Stop reciving messages spoken in the 'place'.
 
     """
     obj = None
 
     def func(self):
-        """
-
-        """
+        """Implement Function"""
         caller = self.caller
         place = self.obj
         occupants = place.db.occupants
 
-        if not self.switches:
-            """
+        # ---------------------------------------------------------------------
+        if 'join' in self.switches:
 
-            """
-            # Handle non-occupant messages
-            if caller not in occupants:
-                self.msg("To contribute to the conversation you must join "
-                         "the " + place.key)
-                place.message_occupants(caller.key + " attempts to speak "
-                                        "from elsewhere but his words are not "
-                                        "heard.")
-                return
-
-            # Send message to occupants.
-            msg = caller.key + " says to the group, '" + self.args + "'."
-            place.message_occupants(msg)
-
-        elif 'join' in self.switches:
-            """
-            
-            """
             # Add caller to occupants and alert occupants.
+            place.join_occupants(caller)
+            
             occupants.append(caller)
             caller.msg("You have joined the " + place.key)
             place.message_occupants(caller.key + "has joined the " + place.key)
@@ -246,33 +182,71 @@ class PlaceCommand(MuxCommand):
             occupants.remove(caller)
             caller.msg("You have left the " + place.key)
             place.message_occupants(caller.key + "has left the " + place.key)
+        # ---------------------------------------------------------------------
 
+        # Handle non-occupant messages
+        if caller not in occupants:
+            self.msg("To contribute to the conversation you must join "
+                     "the " + place.key)
+            place.message_occupants(caller.key + " attempts to speak "
+                                    "from elsewhere but his words are not "
+                                    "heard.")
+            return
 
+        # Send message to occupants.
+        msg = caller.key + " says to the group, '" + self.args + "'."
+        place.message_occupants(msg)
+            
+            
 class PlaceObj(Object):
     """
 
     """
-
     place_command = PlaceCommand
     priority = 101
 
     lockstring = "get:false()"
     occupants = []
+    
+    join_feedback = "You have joined the %s"
+    join_msg = "%s has joined the %s"
+    say_feedback = 'You say quietly, "%s"'
+    say_msg = '%s says quietly, "%s"'
+    leave_feedback = "You have left the %s"
+    leave_msg = "%s has left the %s"
+    
+    def join_occupants(caller):
+        """Called when a player joins the 'place'"""
+        
+        # Remove caller from other spaces
+        places = [place for place in caller.location.contents
+                  if place.is_typeclass(PlaceObj)]
+        for place in places:
+            if caller in place.db.occupants:
+                place.leave_occupants(caller)
+        
+        # Add caller to occupants and alert occupants.
+        caller.msg(self.join_feedback % self.key)
+        self.message_occupants(self.join_msg % (caller.key, self.key))
+        self.occupants.append(caller)
 
-    # Helper classes and methods to implement the Exit. These need not
-    # be overloaded unless one want to change the foundation for how
-    # Exits work. See the end of the class for hook methods to overload.
-
-    def message_occupants(self, msg):
-        """
-
-        """
+    def message_occupants(caller, msg, exclude=[]):
+        """Called to message occupants of place"""
+        
+        caller.msg(say_feedback % msg)
         for occupant in self.db.occupants:
-            if occupant.location == self.location:
-                occupant.msg(msg)
-            else:
+            if not occupant.location == self.location:
                 self.db.occupants.remove(occupant)
+            if not occupant in exclude:
+                occupant.msg(say_msg % (caller.key, msg))
 
+    def leave_occupants(caller):
+        """Called when a player leaves a 'place'"""
+        
+        self.db.occupants.remove(caller)
+        caller.msg(leave_feedback % self.key)
+        self.message_occupants(leave_msg % (caller.key, self.key))
+                
     def create_place_cmdset(self, exidbobj):
         """
         Helper function for creating an exit command set + command.
