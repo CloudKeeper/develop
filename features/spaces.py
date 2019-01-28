@@ -5,17 +5,6 @@ FEAATURES:
 -SET A PLAYER LIMIT
 -look at place give you a list of the occupants.
 
--Character Mixin
--Exit Obj
--Room Mixin
--Design Menu
-
-I suppose one could add  to the extended_room contrib with that kind of
-functionality. My main reason for not doing so was always that in MUDs,
-locations/places can depend quite a bit on your game system - should you be
-able to evesdrop etc? Is what you hear based on your skills somehow etc? But
-maybe it could still be implemented in a somewhat more general form.
-
 My implementation for Places was a typeclass that has a cmdset for tabletalk,
 joining the place, and leaving it. It doesn't replace or suppress any existing
 commands, since it seems common that tabletalk basically becomes an impromptu
@@ -56,6 +45,7 @@ _DEFAULT_WIDTH = settings.CLIENT_DEFAULT_WIDTH
 #
 ###############################################################################
 
+
 class CmdPlace(MuxCommand):
     """
     Create places to share private conversations within a location.
@@ -67,7 +57,7 @@ class CmdPlace(MuxCommand):
 
     """
     key = "@place"
-    switch_options = ("create")
+    switch_options = "create"
     help_category = "Building"
     locks = "cmd:perm(create) or perm(Builder)"
 
@@ -75,7 +65,7 @@ class CmdPlace(MuxCommand):
         """Implement function"""
         caller = self.caller
 
-        # ---------------------------------------------------------------------
+        # SWITCHES ------------------------------------------------------------
         # @place/create <objname>[, alias, alias...][= desc]
         if 'create' in self.switches:
         
@@ -109,11 +99,11 @@ class CmdPlace(MuxCommand):
                 string = string % place.name
             caller.msg(string)
             return
-        # ---------------------------------------------------------------------
 
+        # NO SWITCHES ---------------------------------------------------------
         # @place <Ignored>  # Return list of places at current location. 
         places = [place for place in caller.location.contents
-                      if place.is_typeclass(PlaceObj)]
+                  if place.is_typeclass(PlaceObj)]
         if not places:
             caller.msg("No channels available.")
             return
@@ -133,7 +123,13 @@ class CmdPlace(MuxCommand):
         # Send table to player
         caller.msg("\nAvailable channels:\n%s" % table)
             
-            
+
+###############################################################################
+#
+# PlaceCommand - Interact with/Join/Leave 'Place'
+#
+###############################################################################
+
 class PlaceCommand(MuxCommand):
     """
     Speak only to players who have 'joined' the 'Place' object.
@@ -154,48 +150,30 @@ class PlaceCommand(MuxCommand):
         place = self.obj
         occupants = place.db.occupants
 
-        # ---------------------------------------------------------------------
         if 'join' in self.switches:
-
-            # Add caller to occupants and alert occupants.
             place.join_occupants(caller)
-            
-            occupants.append(caller)
-            caller.msg("You have joined the " + place.key)
-            place.message_occupants(caller.key + "has joined the " + place.key)
 
-            # Send message to occupants.
+            # Send any messages to occupants.
             if self.args:
-                msg = caller.key + " says to the group, '" + self.args + "'."
-                place.message_occupants(msg)
+                place.say_to_occupants(self.args)
 
         elif 'leave' in self.switches:
-            """
-
-            """
-            # Send message to occupants.
+            # Send any message to occupants.
             if self.args:
-                msg = caller.key + " says to the group, '" + self.args + "'."
-                place.message_occupants(msg)
+                place.say_to_occupants(self.args)
 
-            # Remove caller from occupants and alert occupants.
-            occupants.remove(caller)
-            caller.msg("You have left the " + place.key)
-            place.message_occupants(caller.key + "has left the " + place.key)
-        # ---------------------------------------------------------------------
+            place.leave_occupants(caller)
 
+        # No Switches
         # Handle non-occupant messages
         if caller not in occupants:
-            self.msg("To contribute to the conversation you must join "
-                     "the " + place.key)
-            place.message_occupants(caller.key + " attempts to speak "
-                                    "from elsewhere but his words are not "
-                                    "heard.")
+            caller.msg("To contribute to the conversation you must join "
+                       "the " + place.key)
             return
 
         # Send message to occupants.
         msg = caller.key + " says to the group, '" + self.args + "'."
-        place.message_occupants(msg)
+        place.say_to_occupants(caller, msg)
             
             
 class PlaceObj(Object):
@@ -215,9 +193,8 @@ class PlaceObj(Object):
     leave_feedback = "You have left the %s"
     leave_msg = "%s has left the %s"
     
-    def join_occupants(caller):
+    def join_occupants(self, caller):
         """Called when a player joins the 'place'"""
-        
         # Remove caller from other spaces
         places = [place for place in caller.location.contents
                   if place.is_typeclass(PlaceObj)]
@@ -230,22 +207,27 @@ class PlaceObj(Object):
         self.message_occupants(self.join_msg % (caller.key, self.key))
         self.occupants.append(caller)
 
-    def message_occupants(caller, msg, exclude=[]):
-        """Called to message occupants of place"""
-        
-        caller.msg(say_feedback % msg)
+    def say_to_occupants(self, caller, msg):
+        """Speak to occupants of 'place'"""
+        # Give feedback to caller and prep message to occupants.
+        caller.msg(self.say_feedback % msg)
+        self.message_occupants(self.say_msg % (caller.key, msg))
+
+    def message_occupants(self, msg, exclude=[]):
+        """Called to message all occupants of 'place'"""
+        # Remove stale occupants and exclude specified.
         for occupant in self.db.occupants:
             if not occupant.location == self.location:
                 self.db.occupants.remove(occupant)
-            if not occupant in exclude:
-                occupant.msg(say_msg % (caller.key, msg))
+            if occupant not in exclude:
+                occupant.msg(msg)
 
-    def leave_occupants(caller):
+    def leave_occupants(self, caller):
         """Called when a player leaves a 'place'"""
         
         self.db.occupants.remove(caller)
-        caller.msg(leave_feedback % self.key)
-        self.message_occupants(leave_msg % (caller.key, self.key))
+        caller.msg(self.leave_feedback % self.key)
+        self.message_occupants(self.leave_msg % (caller.key, self.key))
                 
     def create_place_cmdset(self, exidbobj):
         """
@@ -257,16 +239,16 @@ class PlaceObj(Object):
             exidbobj (Object): The DefaultExit object to base the command on.
         """
 
-        # create an exit command. We give the properties here,
+        # create the place command. We give the properties here,
         # to always trigger metaclass preparations
-        cmd = self.exit_command(key=exidbobj.db_key.strip().lower(),
-                                aliases=exidbobj.aliases.all(),
-                                locks=str(exidbobj.locks),
-                                auto_help=False,
-                                destination=exidbobj.db_destination,
-                                arg_regex=r"^$",
-                                is_exit=True,
-                                obj=exidbobj)
+        cmd = self.place_command(key=exidbobj.db_key.strip().lower(),
+                                 aliases=exidbobj.aliases.all(),
+                                 locks=str(exidbobj.locks),
+                                 auto_help=False,
+                                 destination=exidbobj.db_destination,
+                                 arg_regex=r"^$",
+                                 is_exit=True,
+                                 obj=exidbobj)
         # create a cmdset
         exit_cmdset = CmdSet(None)
         exit_cmdset.key = 'PlaceCmdSet'
@@ -275,8 +257,6 @@ class PlaceObj(Object):
         # add command to cmdset
         exit_cmdset.add(cmd)
         return exit_cmdset
-
-    # Command hooks
 
     def at_cmdset_get(self, **kwargs):
         """
