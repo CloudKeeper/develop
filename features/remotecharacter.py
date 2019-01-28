@@ -90,7 +90,7 @@ class RemoteAccount(FILL IN WITH ALL CLASSES)):
 #
 ##############################################################################
 
-class BotCmdSet(CmdSet):
+class RemoteCmdSet(CmdSet):
     """
     Holds commands used by the IRCPuppetBot.
     Import this to accounts command set to gain access to Puppet bot commands.
@@ -117,14 +117,6 @@ class CmdRemote(COMMAND_DEFAULT_CLASS):
         if not self.args:
             self.msg(self.account.at_look(target=self.playable,
                                           session=self.session))
-
-        # # Switch options available only if valid bot is given.
-        # if self.switches:
-        #
-        #     # @remote/access <bot> -
-        #     if "access" in self.switches:
-
-        # Remote Puppet Character.
 
         # Get available character
         remote = search.object_search(self.args,

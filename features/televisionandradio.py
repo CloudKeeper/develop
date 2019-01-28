@@ -1,5 +1,5 @@
 """
-Radio Station - INOPERABLE
+Radio Station - To Be Tested
 
 This is a system for having in-game radio stations which players can tune into
 via radio objects to 'hear' (read) their favourite songs or 'listen to' (read) 
@@ -17,10 +17,29 @@ a time in sequence.
 
 Lyric Module -> Radio Station -> Channel -> Radio Object -> Location
 
+
+Sources:
+-Station
+    Sends out saved messages
+-Live broadcast
+    Microphone that sends spoken word
+    Camera that sends everything.
+
+Channel:
+Default Channel
+
+Recievers:
+-Room wide
+    Television for all types of messages
+    Radio for sound messages
+-Personal
+    Radio for sound messages
+
 # -----------------------------------------------------------------------------
 NOTES:
 - Get list of variables in module and pop next song from list. That will 
 prevent repeats until set finished.
+- Pause Station so you can run your own show etc
 # -----------------------------------------------------------------------------
 """
 from evennia.comms.models import ChannelDB
@@ -28,6 +47,13 @@ from evennia.utils import utils
 from evennia import DefaultScript, TICKER_HANDLER
 import random, sys
 
+
+# -----------------------------------------------------------------------------
+#
+# Radio Messages - Source > RadioStation > Channel > RadioObject > Room
+# Default radio messages to be played if no source identified.
+#
+# -----------------------------------------------------------------------------
 
 # Default radio messages.
 static = """\
@@ -42,7 +68,7 @@ ball_game = """\
 ♫ Let me root, root, root for the home team ♫
 ♫ If they don't win, it's a shame ♫
 ♫ For it's one, two, three strikes, you're out ♫
-♫ At the old ball game ♫
+♫ At the old ball game ♫\
 """
 
 evennia_ad = """\
@@ -55,6 +81,11 @@ Get your parents to get you Evennia today!
 Now back to your regular program.\
 """
 
+# -----------------------------------------------------------------------------
+#
+# Radio Station - Source > RadioStation > Channel > RadioObject > Room
+#
+# -----------------------------------------------------------------------------
 
 class RadioStation(DefaultScript):
     """
@@ -85,6 +116,20 @@ class RadioStation(DefaultScript):
         if self.db.channel:
             self.db.channel.msg(self.db.current.pop(0))
 
+# -----------------------------------------------------------------------------
+#
+# Channel - Source > RadioStation > Channel > RadioObject > Room
+# The functionality of the channel is just the default with a lock 
+# preventing non-Radioobjects from joining the channel. This is handled
+# in channel creation by specifying the lock string.
+#
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+#
+# Radio Object - Source > RadioStation > Channel > RadioObject > Room
+#
+# -----------------------------------------------------------------------------
 
 class RadioObj(Object):
     """
@@ -103,37 +148,30 @@ class RadioObj(Object):
 
         super(RadioObj, self).msg()
 
-
+# -----------------------------------------------------------------------------
+#
+# Example Batch Code Creation
+#
+# -----------------------------------------------------------------------------
 
 """
-# -*- coding: utf-8 -*-
- 
-#
-# Batchcself.db.channel.msg("Test", header=None, senders=None)ode Script
-#
- 
-# HEADER
- 
-# CODE
 from evennia.comms.models import ChannelDB
 from evennia.comms.channelhandler import CHANNELHANDLER
 from evennia import create_channel, create_object, create_script
 from typeclasses import objects
  
-# radio_channel = create_channel("radio",
-#                                ["Radio"],
-#                                "Description",
-#                                "send:all();listen:all();control:id(%s)" % caller.id)
-# radio_channel.connect(caller)
-# CHANNELHANDLER.update()
- 
-channel = ChannelDB.objects.channel_search("Radio")
-station = channel[0]
- 
-radio = create_object(objects.ReceiverObj, key="radio", location=caller.location)
-station.connect(radio)
-CHANNELHANDLER.update()
- 
-station.msg("Connected", header=None, senders=None)
-create_script("world.script_radio.RadioStation", obj=None)
+# Setup Channel
+radio_channel = create_channel("radio",
+                               ["Radio"],
+                               "Description",
+                               "send:all();listen:all();control:all()")
+
+# Setup Station
+station = create_script("features.radiostation.RadioStation", obj=None)
+station.db.channel = radio_channel
+
+# Setup Radio
+radio = create_object("features.radiostation.RadioObject", 
+                      key="radio", location=caller.location)
+radio_channel.connect(radio)
 """
