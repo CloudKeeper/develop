@@ -10,7 +10,7 @@ from typeclasses.characters import Character
 from evennia.utils.evmenu import EvMenu
 
 
-class Trainer(Character):
+class EvMenuNPC(Character):
     """
     Typeclass for trainer characters.
 
@@ -48,3 +48,57 @@ class Trainer(Character):
         EvMenu(caller, conversation, cmdset_mergetype="Replace",
                startnode="node1", cmdset_priority=1,
                cmd_on_exit="", npc=self)
+
+
+"""
+Example BatchCode
+
+npc = create_object(npcs.EvMenuNPC, key="NPC", location=caller.location)
+npc.db.desc = "This is a test NPC."
+npc.db.conversation = ""
+def node1(caller):
+    text = "Hi. I'm a test NPC!"
+    options = None
+    return utils_text.nobordertext(text, "Lab Aide"), options
+
+conversation = {"node1": node1}
+""
+
+
+More Advanced Example
+
+agent = create_object(npcs.EvMenuNPC, key="NPC", location=caller.location)
+agent.db.desc = "A well dressed business man."
+agent.db.conversation = ""
+def node1(caller):
+    if caller.location in caller.db.property_owned:
+        text = ("I hope you're enjoying your apartment!..")
+        return utils_text.nobordertext(text, "Agent"), None
+
+    text = ("Would you like your very own apartment?.. [Y/N]")
+    options = {"key": "_default",
+               "goto": "node2"}
+    return utils_text.nobordertext(text, "Agent"), options
+
+def node2(caller, raw_string):
+    if raw_string not in ["yes", "y"]:
+        text = ("Perhaps next time!")
+        return utils_text.nobordertext(text, "Agent"), None
+
+    from evennia import create_object
+    from typeclasses import rooms_apartments, exits
+    
+    room = create_object(Apartment, key=caller.key+"'s Room", location=None)
+    room.db.owner = caller
+    caller.db.property_owned[caller.location] = room
+
+    text = ("Here you go..")
+    options = {"key": "_default",
+               "goto": "node3"}
+    return utils_text.nobordertext(text, "Agent"), None
+
+conversation = {"node1": node1,
+                "node2": node2}
+""
+
+"""
