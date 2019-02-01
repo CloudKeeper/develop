@@ -9,26 +9,43 @@ COMMAND_DEFAULT_CLASS = utils.class_from_module(settings.COMMAND_DEFAULT_CLASS)
 
 class CmdGet(COMMAND_DEFAULT_CLASS):
     """
-    pick up something
+    Take object from your location [or target object]
+    
     Usage:
-      get <obj>
-    Picks up an object from your location and puts it in
-    your inventory.
+        get <obj> [from obj]
+        
+    Example:
+        get wooden sword
+        get big book from old bookshelf
     """
     key = "get"
-    aliases = "grab"
+    aliases = ["grab", "take"]
     locks = "cmd:all()"
     arg_regex = r"\s|$"
 
     def func(self):
         """implements the command."""
-
         caller = self.caller
-
+        
+        # If no args
         if not self.args:
             caller.msg("Get what?")
             return
-        obj = caller.search(self.args, location=caller.location)
+        
+        # 1. cmdstring = get; args = "wooden sword"
+        # 2. cmdstring = get; args = "Big book from old bookshelf"
+        args = self.args.split(" from ")
+        
+        # 1. ["wooden sword"]
+        # 2. ["Big book", "old bookshelf"]
+        if len(args) > 1:
+            location = caller.search(args[1], location = caller.location)
+        else:
+            location = caller.location
+        if not location:
+            return
+        
+        obj = caller.search(args[0], location=location)
         if not obj:
             return
         if caller == obj:
@@ -46,11 +63,17 @@ class CmdGet(COMMAND_DEFAULT_CLASS):
             return
 
         obj.move_to(caller, quiet=True)
-        caller.msg("You pick up %s." % obj.name)
-        caller.location.msg_contents("%s picks up %s." %
-                                     (caller.name,
-                                      obj.name),
-                                     exclude=caller)
+        if len(args) > 1:
+            caller.msg("You pick up %s from %s." % (obj.name, location.name))
+            caller.location.msg_contents("%s picks up %s from %s." % 
+                                        (caller.name, obj.name, location.name),
+                                        exclude=caller)
+        else:
+            caller.msg("You pick up %s." % obj.name)
+            caller.location.msg_contents("%s picks up %s." %
+                                        (caller.name, obj.name), 
+                                        exclude=caller)
+
         # calling at_get hook method
         obj.at_get(caller)
 
