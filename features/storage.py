@@ -39,7 +39,7 @@ class CmdGet(COMMAND_DEFAULT_CLASS):
         # 1. lhs = "wooden sword"; rhs = ""
         # 2. lhs = "Big book"; rhs = "old bookshelf"
         if self.rhs:
-            location = caller.search(self.rhs, location=caller.location)
+            location = caller.search(self.rhs)
         else:
             location = caller.location
         if not location:
@@ -108,7 +108,7 @@ class CmdDrop(COMMAND_DEFAULT_CLASS):
         # 1. lhs = "wooden sword"; rhs = ""
         # 2. lhs = "Big book"; rhs = "old bookshelf"
         if self.rhs:
-            location = caller.search(self.rhs, location=caller.location)
+            location = caller.search(self.rhs)
         else:
             location = caller.location
         if not location:

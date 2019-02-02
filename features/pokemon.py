@@ -13,14 +13,42 @@ Pokemon - INOPERABLE
 -Computer
 -Team Menu
 """
-from typeclasses.objects import Object
+from typeclasses.objects import Object, Character
+from evennia.utils import lazy_property
+import random
 
+# -----------------------------------------------------------------------------
+#
+# Trainer Typeclass
+#
+# -----------------------------------------------------------------------------
+
+
+class Trainer(Character):
+    """
+    Typeclass for trainer characters.
+    """
+    @lazy_property
+    def party(self):
+        """Handler for Pokemon Party."""
+        return PartyHandler(self)
+
+    def at_object_creation(self):
+        """
+        Called only once, when object is first created
+        """
+        super(Trainer, self).at_object_creation()
+
+        # Values for the PartyHandler
+        self.db.party = []  # [<Pokemon>, <Pokemon>]
+        self.db.box = []  # [<Pokemon>, <Pokemon>]
 
 # -----------------------------------------------------------------------------
 #
 # Pokemon Typeclass
 #
 # -----------------------------------------------------------------------------
+
 
 class Pokemon(Object):
     """
@@ -70,7 +98,8 @@ class CmdUse(COMMAND_DEFAULT_CLASS):
             caller.msg("Use what?")
             return
 
-        obj = caller.search(obj)
+        # Only allow use of objects in your inventory.
+        obj = caller.search(obj, location=caller)
         if not obj:
             return
 
@@ -80,8 +109,7 @@ class CmdUse(COMMAND_DEFAULT_CLASS):
 
         # If target given: find target.
         if target:
-            target = caller.search(target,
-                                   nofound_string=_TGT_ERRMSG.format(target))
+            target = caller.search(target)  # TO DO Add Pokemon in your party.
             if not target:
                 return
 
@@ -97,20 +125,91 @@ class CmdUse(COMMAND_DEFAULT_CLASS):
         obj.use_object(caller, target)
 
 
+class Pokeball(Object):
+    """
 
+    """
+    def use_object(self, caller, target, quiet=False):
+        """
 
+        """
+        # Assist Functions.
 
+        def calculate_catch(count):
+            """
 
+            """
+            value = random.randint(0, 65535)
+            if value >= breakout_value:
+                caller.location.msg_contents(target.key + " broke free!")
+                caller.msg(fail_msg[count])
+                return
+            else:
+                if count == 3:
+                    successful_catch()
+                    return
+                else:
+                    caller.location.msg_contents(random.choice(shake_msg).
+                                                 format(self.key))
+                    utils.delay(3, calculate_catch, count+1)
 
+            # -----------------------------------------------------------------
 
+        def successful_catch():
+            """
 
+            """
+            caller.party.add(target)
+            target.location = None
+            target.db.trainer = caller
+            target.db.pokeball = self.key
+            target.db.owner.insert(0, caller)
 
+            caller.msg("You caught %s." % target.name)
+            caller.location.msg_contents("%s caught %s." % (caller.name,
+                                                            target.name),
+                                         exclude=caller)
+            self.delete()
+            # -----------------------------------------------------------------
 
+        # Game Messages
+        caller.msg("You throw a %s at %s." % (self.key, target.key))
+        msg = "%s throws a %s at %s." % (caller.key, self.key, target.key)
+        caller.location.msg_contents(msg, exclude=caller)
+        msg = "The %s contacts %s with a flash of red light." % (self.key, target.key)
+        caller.location.msg_contents(msg)
 
+        # Fail if target not Pokemon or Pokemon has owner.
+        if not isinstance(target, Pokemon) or target.db.trainer:
+            caller.location.msg_contents("The %s fails!" % self.key)
+            caller.msg("You return the %s to your inventory." % self.key)
+            return
 
+        # Calculate if immediately captured.
+        if self.key in ["Masterball"]:
+            successful_catch()
+            return
 
+        # catch_rate = rules.calculate_catchrate(target)
+        catch_rate = random.randint(255, 259)
 
+        if catch_rate >= 255:
+            successful_catch()
+            return
 
+        # Otherwise calculate if Pokemon breaks out of Pokeball
+        # breakout_value = rules.calculate_wobblerate(catch_rate)
+        breakout_value = random.randint(32765, 32769)
 
+        shake_msg = ["The {} shakes violently!",
+                     "The {} wobbles from side to side!",
+                     "The {} shudders harshly!",
+                     "The {} strains to keep closed!"]
 
+        fail_msg = ["Oh no! The Pokemon broke free!",
+                    "Aww! It appeared to be caught!",
+                    "Aargh! Almost had it!",
+                    "Shoot! It was so close, too!"]
+
+        utils.delay(3, calculate_catch, 0)
 
