@@ -5,14 +5,14 @@
 
 from typeclasses.objects import Object
 COMMAND_DEFAULT_CLASS = utils.class_from_module(settings.COMMAND_DEFAULT_CLASS)
-
+from evennia.utils.utils import (list_to_string)
 
 class CmdGet(COMMAND_DEFAULT_CLASS):
     """
     Take object from your location [or target object]
     
     Usage:
-        get <obj> [from obj]
+        get <obj> [<= or from> obj]
         
     Example:
         get wooden sword
@@ -20,32 +20,30 @@ class CmdGet(COMMAND_DEFAULT_CLASS):
     """
     key = "get"
     aliases = ["grab", "take"]
+    rhs_split = ("=", " from ")  # Allow " from " usage.
     locks = "cmd:all()"
     arg_regex = r"\s|$"
 
     def func(self):
         """implements the command."""
+
         caller = self.caller
-        
         # If no args
         if not self.args:
             caller.msg("Get what?")
             return
-        
-        # 1. cmdstring = get; args = "wooden sword"
-        # 2. cmdstring = get; args = "Big book from old bookshelf"
-        args = self.args.split(" from ")
-        
-        # 1. ["wooden sword"]
-        # 2. ["Big book", "old bookshelf"]
-        if len(args) > 1:
-            location = caller.search(args[1], location = caller.location)
+
+        # 1. lhs = "wooden sword"; rhs = ""
+        # 2. lhs = "Big book"; rhs = "old bookshelf"
+        if self.rhs:
+            location = caller.search(self.rhs, location=caller.location)
         else:
             location = caller.location
         if not location:
             return
+        # TO DO Add some sort of check that you can get objects from target
         
-        obj = caller.search(args[0], location=location)
+        obj = caller.search(self.lhs, location=location)
         if not obj:
             return
         if caller == obj:
@@ -63,32 +61,35 @@ class CmdGet(COMMAND_DEFAULT_CLASS):
             return
 
         obj.move_to(caller, quiet=True)
-        if len(args) > 1:
+        if self.rhs:
             caller.msg("You pick up %s from %s." % (obj.name, location.name))
             caller.location.msg_contents("%s picks up %s from %s." % 
-                                        (caller.name, obj.name, location.name),
-                                        exclude=caller)
+                                         (caller.name, obj.name, location.name),
+                                         exclude=caller)
         else:
             caller.msg("You pick up %s." % obj.name)
             caller.location.msg_contents("%s picks up %s." %
-                                        (caller.name, obj.name), 
-                                        exclude=caller)
+                                         (caller.name, obj.name),
+                                         exclude=caller)
 
         # calling at_get hook method
         obj.at_get(caller)
 
+
 class CmdDrop(COMMAND_DEFAULT_CLASS):
     """
-    drop something
+    drop something at your location [or target location.]
 
     Usage:
-      drop <obj>
+      drop <obj> [<= or in> obj]
 
-    Lets you drop an object from your inventory into the
-    location you are currently in.
+    Example:
+        drop wooden sword
+        drop big book in old bookshelf
     """
 
     key = "drop"
+    rhs_split = ("=", " in ")  # Allow " in " usage.
     locks = "cmd:all()"
     arg_regex = r"\s|$"
 
@@ -96,15 +97,26 @@ class CmdDrop(COMMAND_DEFAULT_CLASS):
         """Implement command"""
 
         caller = self.caller
+        # If no args
         if not self.args:
             caller.msg("Drop what?")
             return
 
+        # 1. lhs = "wooden sword"; rhs = ""
+        # 2. lhs = "Big book"; rhs = "old bookshelf"
+        if self.rhs:
+            location = caller.search(self.rhs, location=caller.location)
+        else:
+            location = caller.location
+        if not location:
+            return
+        # TO DO Add some sort of check that you can drop objects in target
+
         # Because the DROP command by definition looks for items
         # in inventory, call the search function using location = caller
-        obj = caller.search(self.args, location=caller,
-                            nofound_string="You aren't carrying %s." % self.args,
-                            multimatch_string="You carry more than one %s:" % self.args)
+        obj = caller.search(self.lhs, location=caller,
+                            nofound_string="You aren't carrying %s." % self.lhs,
+                            multimatch_string="You carry more than one %s:" % self.lhs)
         if not obj:
             return
 
@@ -112,11 +124,18 @@ class CmdDrop(COMMAND_DEFAULT_CLASS):
         if not obj.at_before_drop(caller):
             return
 
-        obj.move_to(caller.location, quiet=True)
-        caller.msg("You drop %s." % (obj.name,))
-        caller.location.msg_contents("%s drops %s." %
-                                     (caller.name, obj.name),
-                                     exclude=caller)
+        obj.move_to(location, quiet=True)
+        if self.rhs:
+            caller.msg("You drop %s in %s." % (obj.name, location.name))
+            caller.location.msg_contents("%s drops %s in %s." %
+                                         (caller.name, obj.name, location.name),
+                                         exclude=caller)
+        else:
+            caller.msg("You drop %s." % obj.name)
+            caller.location.msg_contents("%s drops %s." %
+                                         (caller.name, obj.name),
+                                         exclude=caller)
+
         # Call the object script's at_drop() method.
         obj.at_drop(caller)
 
@@ -172,6 +191,50 @@ class Container(Object):
     """
     A Mixin that allows taking and putting objects inside this object.
     """
+
+    def return_appearance(self, looker, **kwargs):
+        """
+        This formats a description. It is the hook a 'look' command
+        should call.
+        Args:
+            looker (Object): Object doing the looking.
+            **kwargs (dict): Arbitrary, optional arguments for users
+                overriding the call (unused by default).
+        """
+        if not looker:
+            return ""
+        # get and identify all objects
+        visible = (con for con in self.contents if con != looker and
+                   con.access(looker, "view"))
+        exits, users, things = [], [], defaultdict(list)
+        for con in visible:
+            key = con.get_display_name(looker)
+            if con.destination:
+                exits.append(key)
+            elif con.has_account:
+                users.append("|c%s|n" % key)
+            else:
+                # things can be pluralized
+                things[key].append(con)
+        # get description, build string
+        string = "|c%s|n\n" % self.get_display_name(looker)
+        desc = self.db.desc
+        if desc:
+            string += "%s" % desc
+        if exits:
+            string += "\n|wExits:|n " + list_to_string(exits)
+        if users or things:
+            # handle pluralization of things (never pluralize users)
+            thing_strings = []
+            for key, itemlist in sorted(things.iteritems()):
+                nitem = len(itemlist)
+                if nitem == 1:
+                    key, _ = itemlist[0].get_numbered_name(nitem, looker, key=key)
+                else:
+                    key = [item.get_numbered_name(nitem, looker, key=key)[1] for item in itemlist][0]
+                thing_strings.append(key)
+
+            string += "\n|wYou see:|n " + list_to_string(users + thing_strings)
 
     def at_object_receive(self, moved_obj, source_location, **kwargs):
         """
