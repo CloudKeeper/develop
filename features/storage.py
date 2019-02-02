@@ -1,5 +1,8 @@
 """
-
+PROBLEMS:
+-How do we deal with get command looking for an object in the empty stash?
+Do we has specific stash code in the get command or change every object to 
+give it's own content list.
 
 """
 
@@ -196,6 +199,11 @@ class Container(Object):
         """
         This formats a description. It is the hook a 'look' command
         should call.
+        
+        The Container object should not have characters or exits inside of it.
+        We provide a list of objects and a brief description so players can 
+        decide to retrieve the objects or not.
+        
         Args:
             looker (Object): Object doing the looking.
             **kwargs (dict): Arbitrary, optional arguments for users
@@ -206,80 +214,18 @@ class Container(Object):
         # get and identify all objects
         visible = (con for con in self.contents if con != looker and
                    con.access(looker, "view"))
-        exits, users, things = [], [], defaultdict(list)
-        for con in visible:
-            key = con.get_display_name(looker)
-            if con.destination:
-                exits.append(key)
-            elif con.has_account:
-                users.append("|c%s|n" % key)
-            else:
-                # things can be pluralized
-                things[key].append(con)
-        # get description, build string
+                   
         string = "|c%s|n\n" % self.get_display_name(looker)
         desc = self.db.desc
         if desc:
             string += "%s" % desc
-        if exits:
-            string += "\n|wExits:|n " + list_to_string(exits)
-        if users or things:
-            # handle pluralization of things (never pluralize users)
-            thing_strings = []
-            for key, itemlist in sorted(things.iteritems()):
-                nitem = len(itemlist)
-                if nitem == 1:
-                    key, _ = itemlist[0].get_numbered_name(nitem, looker, key=key)
-                else:
-                    key = [item.get_numbered_name(nitem, looker, key=key)[1] for item in itemlist][0]
-                thing_strings.append(key)
-
-            string += "\n|wYou see:|n " + list_to_string(users + thing_strings)
-
-    def at_object_receive(self, moved_obj, source_location, **kwargs):
-        """
-        Called after an object has been moved into this object.
-        Args:
-            moved_obj (Object): The object moved into this one
-            source_location (Object): Where `moved_object` came from.
-                Note that this could be `None`.
-            **kwargs (dict): Arbitrary, optional arguments for users
-                overriding the call (unused by default).
-        """
-        pass
+        if visisble:
+            string += "\n|wContents:|n "
+            for obj in visible:
+                string += "%s - %s" % (obj.name, obj.db.desc.strip('\n')[0:50] + "...")
         
-    def at_before_get(self, getter, **kwargs):
-        """
-        Called by the default `get` command before this object has been
-        picked up.
-        Args:
-            getter (Object): The object about to get this object.
-            **kwargs (dict): Arbitrary, optional arguments for users
-                overriding the call (unused by default).
-        Returns:
-            shouldget (bool): If the object should be gotten or not.
-        Notes:
-            If this method returns False/None, the getting is cancelled
-            before it is even started.
-        """
-        return True
-
-    def at_get(self, getter, **kwargs):
-        """
-        Called by the default `get` command when this object has been
-        picked up.
-        Args:
-            getter (Object): The object getting this object.
-            **kwargs (dict): Arbitrary, optional arguments for users
-                overriding the call (unused by default).
-        Notes:
-            This hook cannot stop the pickup from happening. Use
-            permissions or the at_before_get() hook for that.
-        """
-        pass
-
-
-class Stash(Object):
+        
+class Stash(Container):
     """
     This is a players personal stash.
 
@@ -287,6 +233,34 @@ class Stash(Object):
     Objs taken from stash by the player are retrieved with the tag from none.
     """
 
+    def return_appearance(self, looker, **kwargs):
+        """
+        This formats a description. It is the hook a 'look' command
+        should call.
+        
+        The Stash will not have any objects stored inside it. We collect all
+        the objects the Player currently has in it's Stash by pulling the tag
+        and presents it as the Stash's contents.
+        
+        Args:
+            looker (Object): Object doing the looking.
+            **kwargs (dict): Arbitrary, optional arguments for users
+                overriding the call (unused by default).
+        """
+        if not looker:
+            return ""
+        # get and identify all objects
+        visible = evennia.search_tag(source_location.dbref, category="stash")
+                   
+        string = "|c%s|n\n" % self.get_display_name(looker)
+        desc = self.db.desc
+        if desc:
+            string += "%s" % desc
+        if visisble:
+            string += "\n|wContents:|n "
+            for obj in visible:
+                string += "%s - %s" % (obj.name, obj.db.desc.strip('\n')[0:50] + "...")
+    
     def at_object_receive(self, moved_obj, source_location, **kwargs):
         """
         Called after an object has been moved into this object.
@@ -297,8 +271,11 @@ class Stash(Object):
             **kwargs (dict): Arbitrary, optional arguments for users
                 overriding the call (unused by default).
         """
-        pass
-
+        if source_location:
+            moved_obj.tags.add(source_location.dbref, category="stash")
+            moved_obj.location = None
+        
+        
     def at_before_get(self, getter, **kwargs):
         """
         Called by the default `get` command before this object has been
