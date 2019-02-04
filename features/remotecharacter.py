@@ -70,6 +70,12 @@ class CmdRemote(COMMAND_DEFAULT_CLASS):
     """
     Creation and Deleting completed by @charcreate, @chardelete.
     Puppeting primary Character completed with @ic
+    
+    -Lock checks?
+    @remote - All available characters and controlled characters
+    @remote/control <character> - Start controlling character
+    @remote <character> = <CmdString> - Act as controlled character
+    *Prefer a command per remoteCharacter set up when you can work out how
     """
     key = "@remote"
     locks = "cmd:all()"
@@ -77,23 +83,41 @@ class CmdRemote(COMMAND_DEFAULT_CLASS):
 
     def func(self):
         """ """
-        # If no args: list available puppets
+        # @remote  //  @remote/control
+        # If no args: list controlled chars and available chars.
         if not self.args:
-            self.msg(self.account.at_look(target=self.playable,
-                                          session=self.session))
-
-        # Get available character
-        remote = search.object_search(self.args,
-                            candidates=self.account.db._playable_characters)
-        if not remote:
-            self.msg("No Playable Characters by that name.")
+            self.msg("Your Current Main Character is %s" % self.account.obj.key)
+            
+            self.msg("Your Currently Controlled Characters:")
+            current = [char for char in self.account.db._playable_characters
+                       if char.db.remote_account is self.account]
+            self.msg(str(current))
+      
+            self.msg("Your Currently available Characters:")
+            current = [char for char in self.account.db._playable_characters
+                       if not char.db.remote_account and not char.account]
+            self.msg("Usage: @remote[/contro] <character> [= <cmdstring>]")
             return
+      
+        # @remote/control <character>
+        # Set up controlling character remotely
+        if "control" in self.switches:    
+            # Get available character
+            character = search.object_search(self.args,
+                                candidates=self.account.db._playable_characters)
+            if not character:
+                self.msg("No Playable Characters by that name.")
+                return
 
-        if remote[0].has_account or remote[0].db.remote_account:
-            self.msg("Character is currently being used.")
-            return
+            if character[0].has_account or character[0].db.remote_account:
+                self.msg("Character is currently being used.")
+                return
 
-        # Remote Character
+            # Remote Character
+            character.remote_control(caller)
+            
+        # @remote <character> = <cmdstring>
+        # TO DO
 
 ##############################################################################
 #
@@ -114,10 +138,14 @@ class RemoteCharacter(FILL IN WITH ALL CLASSES):
         self.db.remote_account = None
         self.db.no_session_stashing = True
 
-    def remote_control(self):
+    def remote_control(self, controller):
         """
         """
-        # command checks lock checking
+        if not controller:
+            return
+        
+        self.db.remote_account = controller
+        
         # Set remote attribute
         # create command
         # give caller commandset
