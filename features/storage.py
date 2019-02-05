@@ -1,14 +1,13 @@
 """
-PROBLEMS:
--How do we deal with get command looking for an object in the empty stash?
-Do we has specific stash code in the get command or change every object to 
-give it's own content list.
+TO BE TESTED
 
 """
 
+import evennia
 from typeclasses.objects import Object
 COMMAND_DEFAULT_CLASS = utils.class_from_module(settings.COMMAND_DEFAULT_CLASS)
 from evennia.utils.utils import (list_to_string)
+
 
 class CmdGet(COMMAND_DEFAULT_CLASS):
     """
@@ -45,8 +44,14 @@ class CmdGet(COMMAND_DEFAULT_CLASS):
         if not location:
             return
         # TO DO Add some sort of check that you can get objects from target
-        
-        obj = caller.search(self.lhs, location=location)
+
+        # Get Object. We have to allow for Player Stash
+        if isinstance(location, Stash):
+            obj = caller.search(self.lhs,
+                                candidates=evennia.search_tag(caller.dbref,
+                                                              category="stash"))
+        else:
+            obj = caller.search(self.lhs, location=location)
         if not obj:
             return
         if caller == obj:
@@ -219,7 +224,7 @@ class Container(Object):
         desc = self.db.desc
         if desc:
             string += "%s" % desc
-        if visisble:
+        if visible:
             string += "\n|wContents:|n "
             for obj in visible:
                 string += "%s - %s" % (obj.name, obj.db.desc.strip('\n')[0:50] + "...")
@@ -250,13 +255,13 @@ class Stash(Container):
         if not looker:
             return ""
         # get and identify all objects
-        visible = evennia.search_tag(source_location.dbref, category="stash")
+        visible = evennia.search_tag(looker.dbref, category="stash")
                    
         string = "|c%s|n\n" % self.get_display_name(looker)
         desc = self.db.desc
         if desc:
             string += "%s" % desc
-        if visisble:
+        if visible:
             string += "\n|wContents:|n "
             for obj in visible:
                 string += "%s - %s" % (obj.name, obj.db.desc.strip('\n')[0:50] + "...")
@@ -274,34 +279,3 @@ class Stash(Container):
         if source_location:
             moved_obj.tags.add(source_location.dbref, category="stash")
             moved_obj.location = None
-        
-        
-    def at_before_get(self, getter, **kwargs):
-        """
-        Called by the default `get` command before this object has been
-        picked up.
-        Args:
-            getter (Object): The object about to get this object.
-            **kwargs (dict): Arbitrary, optional arguments for users
-                overriding the call (unused by default).
-        Returns:
-            shouldget (bool): If the object should be gotten or not.
-        Notes:
-            If this method returns False/None, the getting is cancelled
-            before it is even started.
-        """
-        return True
-
-    def at_get(self, getter, **kwargs):
-        """
-        Called by the default `get` command when this object has been
-        picked up.
-        Args:
-            getter (Object): The object getting this object.
-            **kwargs (dict): Arbitrary, optional arguments for users
-                overriding the call (unused by default).
-        Notes:
-            This hook cannot stop the pickup from happening. Use
-            permissions or the at_before_get() hook for that.
-        """
-        pass
