@@ -22,6 +22,9 @@ Usage - In-game:
 
 # -----------------------------------------------------------------------------
 NOTES:
+Improvements
+-Store text on the camera to immbue on the photograph
+
 Photo Valuer:
 -Pokemon emotes messages have a value attached to them stored on photo.
 -Locations have a value stored on the location -No point of reference on emote.
@@ -39,34 +42,6 @@ from typeclasses.objects import Object
 COMMAND_DEFAULT_CLASS = utils.class_from_module(settings.COMMAND_DEFAULT_CLASS)
 
 _TGT_ERRMSG = "'{}' could not be located."
-
-# ------------------------------------------------------------------------------
-# Camera Object - Creates photographs when used.
-# ------------------------------------------------------------------------------
-
-
-class Camera(Object):
-
-    def at_object_creation(self):
-        self.cmdset.add_default(CameraCmdSet, permanent=True)
-        super(Camera, self).at_object_creation()
-
-    def use_object(self, character, subjects):
-
-        # Create photograph object.
-        photo = create_object(typeclass=Photograph, location=character,
-                              key="Photo " + character.location.key 
-                              + str(int(time.time())))
-        
-        # Stores names and descriptions of Characters/Objects at location.
-        photo.db.desc = "A small polaroid picture."
-        photo.db.image = ("Captured in the glossy polaroid is: \n" +
-                          character.location.key + "\n" +
-                          character.location.db.desc + "\n")
-        photo.db.subjects = {subject.key: subject.db.desc 
-                             for subject in list(set(subjects))}
-        character.location.msg_contents(character.key 
-                                        + " snapped a photograph!")
 
 # ------------------------------------------------------------------------------
 # Camera Commands - Calls the camera.use_object() function
@@ -104,14 +79,42 @@ class CmdPhotograph(COMMAND_DEFAULT_CLASS):
         subjectlist = []
         for subject in self.lhslist:
             if subject:
-                subject = self.caller.search(subject, 
+                subject = self.caller.search(subject,
                             nofound_string=_TGT_ERRMSG.format(subject))
             if subject:
                 subjectlist.append(subject)
         if not subjectlist:
             subjectlist = self.caller.location.contents
 
-        self.obj.use_object(self.caller, subjectlist)
+        self.obj.at_use(self.caller, subjectlist)
+
+# ------------------------------------------------------------------------------
+# Camera Object - Creates photographs when used.
+# ------------------------------------------------------------------------------
+
+
+class Camera(Object):
+
+    def at_object_creation(self):
+        self.cmdset.add_default(CameraCmdSet, permanent=True)
+        super(Camera, self).at_object_creation()
+
+    def at_use(self, character, subjects):
+
+        # Create photograph object.
+        photo = create_object(typeclass=Photograph, location=character,
+                              key="Photo " + character.location.key 
+                              + str(int(time.time())))
+        
+        # Stores names and descriptions of Characters/Objects at location.
+        photo.db.desc = "A small polaroid picture."
+        photo.db.image = ("Captured in the glossy polaroid is: \n" +
+                          character.location.key + "\n" +
+                          character.location.db.desc + "\n")
+        photo.db.subjects = {subject.key: subject.db.desc 
+                             for subject in list(set(subjects))}
+        character.location.msg_contents(character.key 
+                                        + " snapped a photograph!")
 
 # ------------------------------------------------------------------------------
 # Photograph Object - Uses menus to mimic location when photograph taken.
@@ -135,8 +138,7 @@ class Photograph(Object):
 
 # ------------------------------------------------------------------------------
 # Photograph Menu - Look through objects and descriptions.
-# --------
-# ----------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 def photograph_node_formatter(nodetext, optionstext, caller=None):

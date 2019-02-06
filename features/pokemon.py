@@ -103,7 +103,7 @@ class CmdUse(COMMAND_DEFAULT_CLASS):
         if not obj:
             return
 
-        if not getattr(obj, "use_object", None):
+        if not getattr(obj, "at_use", None):
             caller.msg("You cannot use this object.")
             return
 
@@ -122,14 +122,14 @@ class CmdUse(COMMAND_DEFAULT_CLASS):
                     caller.execute_cmd("Pose " + text)
 
         # Call use_object hook on object.
-        obj.use_object(caller, target)
+        obj.at_use(caller, target)
 
 
 class Pokeball(Object):
     """
 
     """
-    def use_object(self, caller, target, quiet=False):
+    def at_use(self, caller, target, quiet=False):
         """
 
         """
