@@ -61,7 +61,7 @@ class AmbientObj(DefaultObject):
         Eg. self.db.ambient_msgs = {"The sun shines brightly": 1}
         """
         super(AmbientObj, self).at_object_creation()
-        self.db.ambient_msgs = {}
+        self.db.ambient_msgs = []
         
     def return_ambient_msgs(self):
         """
@@ -105,7 +105,7 @@ class AmbientRoom(DefaultRoom, AmbientObj):
         Eg. self.db.ambient_msgs = {"The sun shines brightly": 1}
         """
         super(AmbientRoom, self).at_object_creation()
-        self.db.ambient_msgs = {}
+        self.db.ambient_msgs = []
         self.db.ambient_interval = 30
         self.db.connected_to_ticker = False
 

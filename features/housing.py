@@ -199,4 +199,29 @@ Characters
 
 >Houses you own
     Check permission for owner
+
+owner > admin > builder > 
+
++-------+-------+-------+---------+-------+
+|       | Owner | Admin | Builder | Entry |
++-------+-------+-------+---------+-------+
+| enter | x     | x     | x       | x     |
++-------+-------+-------+---------+-------+
+| get   | x     | x     | x       |       |
++-------+-------+-------+---------+-------+
+| drop  | x     | x     | x       |       |
++-------+-------+-------+---------+-------+
+| kick  | x     | x     |         |       |
++-------+-------+-------+---------+-------+
+| ban   | x     | x     |         |       |
++-------+-------+-------+---------+-------+
+    
+Helper function(location, caller)
+Creates apartment. Adds tag for owner and for location.
+
+Apartment typeclass 
+functions for returning owners etc
+
+Entrance exit
+with multiroom prompt
 """

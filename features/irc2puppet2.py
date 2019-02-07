@@ -16,7 +16,7 @@ channel in the same room as the listener object and causes the puppets to mimic
 what is said and posed in IRC.
 
 Extra Features:
--Whispering to Bots PM's the IRC user.
+-Whisper to Bots to PM the IRC user.
 -IRC users have access to certain in-game commands.
 -Configure appearance and msgs of individual bots
 
@@ -81,6 +81,22 @@ class Listener(Object):
         if self.db.bot:
             self.db.bot.msg(text=text, **kwargs)
 
+class Puppet(Character):
+    """
+    Evennia to IRC Path:
+    **Puppet Object** -> AccountBot -> PortalBot -> IRC
+
+    In advanced usage, the 'Puppet' objects acts as an alternative Listener for
+    whispered messages which is forwarded to IRC users as private messages in
+    addition to acting as speaking NPCs in game.
+    """
+    def msg(self, text=None, **kwargs):
+        """
+        Relay whispered messages to the Accountbot to pass to IRC as PMs.
+        """
+        if isinstance(text, tuple) and text[1].get("type") == "whisper":
+            self.db.bot.msg(text=text, user=self.db.nick, **kwargs)
+
 
 ##############################################################################
 #
@@ -141,6 +157,11 @@ class AccountBotOutputFunctions(Bot):
                 # Turn 'MUDUser says, "string"' to 'MUDUser: Hi There'
                 msg = kwargs["from_obj"].key + ": " + msg.split('"', 1)[1][:-1]
                 super().msg(channel=msg)
+                return
+
+            if text[1]["type"] == "whisper":
+                # A whishper does not need formatting as it is PMd to the user.
+                super().msg(privmsg=((msg,), {"user": kwargs["user"]}))
                 return
 
     def get_nicklist(self, caller=None):
@@ -238,7 +259,7 @@ class PortalBot(IRCBot):
                            "'%s'." % settings.SERVERNAME)
             self.send_privmsg(pm_response, user=user)
 
-        # Regula Channel Message - We pass messages to our Server Bot.
+        # Regular Channel Message - We pass messages to our Server Bot.
         elif not msg.startswith('***'):
             user = user.split('!', 1)[0]
             user = ansi.raw(user)
@@ -436,15 +457,86 @@ class AccountBotInputFunctions(Bot):
                 self.db.puppetdict[nick].execute_cmd("pose " + txt)
             return
 
-        else:
+        elif kwargs["type"] == "msg":
             """
-            Everything else is assumed to be text to speak.
-            Cause the puppet to say the message.
+            Returned when a user speaks in the IRC channel.
+            Causes in-game puppet to say the message.
             """
             nick = ansi.strip_ansi(kwargs["user"])
             if nick in self.db.puppetdict:
                 self.db.puppetdict[nick].execute_cmd("say " + txt)
             return
+
+        elif kwargs["type"] == "privmsg":
+            """
+            Returned when the bot is directly messaged.
+            Users can issue commands to the Server bot through IRC PM.
+            "Look" - Look at the Evennia location and those within it.
+            "whisper" - Whisper in-game account "whisper user = msg"
+            All other messages return a help message.
+            """
+            user = kwargs["user"]
+
+            # Look command - Look at the Evennia location and those within it.
+            if txt.lower().startswith("look"):
+
+                txt = txt.split(" ", 1)[1]
+                if not txt:
+                    target = self.db.ev_location
+                else:
+                    result = search.object_search(txt, candidates=self.db.ev_location.contents)
+                    target = result[0] if len(result) > 0 else None
+
+                if not target:
+                    text = "'%s' could not be located." % txt
+                else:
+                    text = target.return_appearance(self.db.puppetdict[user]).replace('\n', ' ')
+
+                # Return Message.
+                super().msg(privmsg=((text,), {"user": user}))
+
+            # Whisper command - Whisper a user in game through a puppet.
+            elif txt.lower().startswith("whisper"):
+
+                # Parse input. Must be in form 'whisper nick = msg'
+                txt = txt.split(" ", 1)[1]
+                try:
+                    nick, msg = txt.split("=")
+                except Exception:
+                    text = "Whisper Usage: 'Whisper Character = Msg'"
+                    super().msg(privmsg=((text,), {"user": user}))
+                    return
+
+                if not nick or not msg:
+                    text = "Whisper Usage: 'Whisper Character = Msg'"
+                    super().msg(privmsg=((text,),
+                                                        {"user": user}))
+                    return
+
+                puppet = self.db.puppetdict[ansi.strip_ansi(user)]
+                target = puppet.search(nick)
+
+                if not target:
+                    text = "Whisper Aborted: Character could not be found."
+                    # Return Message.
+                    super().msg(privmsg=((text,), {"user": user}))
+                    return
+
+                puppet.execute_cmd("whisper " + nick + "=" + msg)
+                text = 'You whisper to ' + nick + ', "' + msg + '"'
+                super().msg(privmsg=((text,),{"user": user}))
+                return
+
+            # Default message - Acts as help information.
+            else:
+                # some bot info
+                text = ("Command list: \n"
+                        '   "Look": Look at the Evennia location and those within it.\n'
+                        '   "whisper": Whisper in-game account "whisper user = msg"\n'
+                        '   All other messages return this help message.') % (settings.SERVERNAME, settings.SERVERNAME)
+                        
+                # Return Message.
+                super().msg(privmsg=((text,), {"user": user}))
 
 ##############################################################################
 #
@@ -453,17 +545,17 @@ class AccountBotInputFunctions(Bot):
 ##############################################################################
 
 
-class Puppet(Character):
-    """
-    IRC to Evennia Path:
-    IRC -> PortalBot -> AccountBot -> **Puppet Objects**
+# class Puppet(Character):
+#     """
+#     IRC to Evennia Path:
+#     IRC -> PortalBot -> AccountBot -> **Puppet Objects**
 
-    This implements a character object intended to be controlled remotely by
-    the PuppetBot. Each user on the target IRC channel will be represented by
-    a Puppet object and all communication will be through the puppet object
-    using the execute_cmd method.
-    """
-    pass
+#     This implements a character object intended to be controlled remotely by
+#     the PuppetBot. Each user on the target IRC channel will be represented by
+#     a Puppet object and all communication will be through the puppet object
+#     using the execute_cmd method.
+#     """
+#     pass
 
 ##############################################################################
 #

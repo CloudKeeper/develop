@@ -5,6 +5,9 @@ IRC2Object - INOPERABLE
 
 Cloud_Keeper 2018
 
+This coudld actually be achieved by the normal irc2chan using a channel 
+that only objects can connect to.
+
 This is a bare-bones version of the IRC2Object bot. This connects an Evennia
 Object to an IRC channel. This is achieved by having the object send messages 
 to a bot (the PortalBot) connected to IRC. The Portal Bot communicates what it 
@@ -20,19 +23,6 @@ Output Settings:
 -Send only 'say' messages
 -Send messages via a specific radio command
 
-Evennia to IRC Path:
-    Radio Object -> AccountBot -> PortalBot -> IRC
-IRC to Evennia Path:
-    IRC -> PortalBot -> AccountBot -> Radio Objects
-Helper Functions:
-    AccountBot Start & Delete Functions
-    PortalFactory
-IRC2Object Command.
-
-Install Instructions:
-    1. Ensure IRC is enabled in your games settings file.
-    2. Import the BotCmdSet to your character CmdSet.
-    3. @irc2puppet <ircnetwork> <port> <#irchannel> <botname>
 """
 
 import time
