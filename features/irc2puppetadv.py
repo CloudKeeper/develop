@@ -17,8 +17,9 @@ what is said and posed in IRC.
 
 Extra Features:
 -Whisper to Bots to PM the IRC user.
--IRC users have access to certain in-game commands.
+-IRC users have access to the in-game look and whisper commands.
 -Configure appearance and msgs of individual bots
+-Ignore IRC users
 
 Evennia to IRC Path:
     Listener Object -> AccountBot -> PortalBot -> IRC
@@ -81,7 +82,8 @@ class Listener(Object):
         if self.db.bot:
             self.db.bot.msg(text=text, **kwargs)
 
-class Puppet(Character):
+
+class DefaultPuppet(Character):
     """
     Evennia to IRC Path:
     **Puppet Object** -> AccountBot -> PortalBot -> IRC
@@ -90,6 +92,14 @@ class Puppet(Character):
     whispered messages which is forwarded to IRC users as private messages in
     addition to acting as speaking NPCs in game.
     """
+    def at_object_creation(self):
+        """
+        At creation we hide the 'listener' from view.
+        """
+        self.db.desc = "This is a Puppet."
+        self.db.enter = " appears in the room."
+        self.db.exit = " has left the room."
+
     def msg(self, text=None, **kwargs):
         """
         Relay whispered messages to the Accountbot to pass to IRC as PMs.
@@ -443,7 +453,7 @@ class AccountBotInputFunctions(Bot):
                 nick = ansi.strip_ansi(nick)
                 if nick in self.db.puppetdict:
                     self.db.puppetdict[nick].move_to(None, to_none=True)
-                    self.db.ev_location.msg_contents(nick + self.db.puppetexitmsg)
+                    self.db.ev_location.msg_contents(nick + self.db.puppetdict[nick].db.exit)
                     del self.db.puppetdict[nick]
             return
 
@@ -529,7 +539,6 @@ class AccountBotInputFunctions(Bot):
 
             # Default message - Acts as help information.
             else:
-                # some bot info
                 text = ("Command list: \n"
                         '   "Look": Look at the Evennia location and those within it.\n'
                         '   "whisper": Whisper in-game account "whisper user = msg"\n'
@@ -613,10 +622,8 @@ class AccountBot(AccountBotOutputFunctions, AccountBotInputFunctions):
 
         # Default bot values.
         self.db.botdesc = "This is an Evennia IRC bot connecting from '%s'." % settings.SERVERNAME
+        self.db.puppet = DefaultPuppet
         self.db.puppetdict = {}
-        self.db.puppetentrymsg = " appears in the room."
-        self.db.puppetexitmsg = " has left the room."
-        self.db.puppetdefaultdesc = "This is a Puppet."
         self.db.userignorelist = [self.db.irc_botname, "@"+self.db.irc_botname,
                                   "@ChanServ", "ChanServ"]
 
@@ -690,16 +697,15 @@ class AccountBot(AccountBotOutputFunctions, AccountBotInputFunctions):
             puppetdict[nick] = puppetlist[0]
             if not puppetdict[nick].location == self.db.ev_location:
                 puppetdict[nick].move_to(self.db.ev_location, quiet=True)
-                self.db.ev_location.msg_contents(puppetdict[nick].key + self.db.puppetentrymsg)
+                self.db.ev_location.msg_contents(puppetdict[nick].key + puppetdict[nick].db.enter)
 
         # Create a new puppet.
         else:
-            puppetdict[nick] = create.create_object(Puppet, key=nick,
+            puppetdict[nick] = create.create_object(self.db.puppet, key=nick,
                                                     location=self.db.ev_location)
-            puppetdict[nick].db.desc = self.db.puppetdefaultdesc
             puppetdict[nick].tags.add(self.key + "-puppet")
             puppetdict[nick].db.bot = self
-            self.db.ev_location.msg_contents(puppetdict[nick].key + self.db.puppetentrymsg)
+            self.db.ev_location.msg_contents(puppetdict[nick].key + puppetdict[nick].db.enter)
         return
 
     def delete(self, *args, **kwargs):
