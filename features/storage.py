@@ -1,6 +1,15 @@
 """
-TO BE TESTED
+Containers and Player Stash - TO BE TESTED
 
+This provides the ability to get objects from other objects, allowing any
+object to become a container.
+
+This also provides a Player Stash implementation, a container object who's
+'contents' are available to be obtained from any one of possible multiple 
+Player Stash objects in the world.
+
+The 'Get', 'Give' and 'Drop' commands have been edited to support this
+behaviour and a custom CommandSet is provided.
 """
 
 import evennia
@@ -197,7 +206,10 @@ class CmdGive(COMMAND_DEFAULT_CLASS):
 
 class Container(Object):
     """
-    A Mixin that allows taking and putting objects inside this object.
+    This is the default Container Object.
+    Any object of any typeclass can be a container by default. This typeclass
+    just adjusts the return_appearance to make the 'look' command show the 
+    objects contents in a more instructive format.
     """
 
     def return_appearance(self, looker, **kwargs):
@@ -227,12 +239,12 @@ class Container(Object):
         if visible:
             string += "\n|wContents:|n "
             for obj in visible:
-                string += "%s - %s" % (obj.name, obj.db.desc.strip('\n')[0:50] + "...")
+                string += "%s - %s" % (obj.name, obj.db.desc.strip('\n')[0:80-(len(obj.name)+6)] + "...")
         
         
 class Stash(Container):
     """
-    This is a players personal stash.
+    This is a basic personal stash for players.
 
     The stash gives objects a player tag and stores it in None.
     Objs taken from stash by the player are retrieved with the tag from none.
@@ -255,16 +267,16 @@ class Stash(Container):
         if not looker:
             return ""
         # get and identify all objects
-        visible = evennia.search_tag(looker.dbref, category="stash")
+        tagged_objs = evennia.search_tag(looker.dbref, category="stash")
                    
         string = "|c%s|n\n" % self.get_display_name(looker)
         desc = self.db.desc
         if desc:
             string += "%s" % desc
-        if visible:
+        if tagged_objs:
             string += "\n|wContents:|n "
-            for obj in visible:
-                string += "%s - %s" % (obj.name, obj.db.desc.strip('\n')[0:50] + "...")
+            for obj in tagged_objs:
+                string += "%s - %s" % (obj.name, obj.db.desc.strip('\n')[0:80-(len(obj.name)+6)] + "...")
     
     def at_object_receive(self, moved_obj, source_location, **kwargs):
         """
