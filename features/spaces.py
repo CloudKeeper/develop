@@ -1,7 +1,7 @@
 """
 Spaces - NEEDS TESTING
 
-FEAATURES:
+FEATURES:
 -SET A PLAYER LIMIT
 -look at place give you a list of the occupants.
 
