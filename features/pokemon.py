@@ -64,6 +64,7 @@ class Pokemon(Object):
 #
 # -----------------------------------------------------------------------------
 
+
 class CmdUse(COMMAND_DEFAULT_CLASS):
     """
     Use an object
@@ -213,3 +214,407 @@ class Pokeball(Object):
 
         utils.delay(3, calculate_catch, 0)
 
+# -----------------------------------------------------------------------------
+#
+# Party Handler
+#
+# -----------------------------------------------------------------------------
+
+
+"""
+Party handler module.
+
+The `PartyHandler` provides an interface to manipulate a Trainer's party
+whilst respecting the various hooks and calls required. The handler is
+instantiated as a property on the Trainer typeclass, with the trainer passed
+as an argument. It looks for the party and box properties in the Trainer's db
+attributes handler to initialize itself and provide persistence.
+
+Config Properties:
+    list (list): List of current Pokemon objects in party.
+
+Config Requirements:
+    obj.db.party (list): List of current Pokemon objects in party.
+    obj.db.box (list): List of Pokemon owned but not currently in party.
+
+Setup:
+    To use the PartyHandler, add it to a Trainer typeclass as follows:
+
+    from typeclass.hander_party import PartyHandler
+      ...
+    @property
+    def party(self):
+        return PartyHandler(self)
+
+Use:
+    Health is added and subtracted using the `heal` and `dmg` methods or
+    regular arithmetic operators.
+
+Example usage:
+    > self.party.list
+    [<Pokemon>, <Pokemon>]
+    > self.party.add(<Pokemon>)
+    [<Pokemon>, <Pokemon>, <Pokemon>]
+    > len(self.party)
+    3
+    > self.party.alive
+    [<Pokemon>]
+    > len(self.party.alive)
+    1
+    >self.party.fainted
+    [<Pokemon>, <Pokemon>]
+
+"""
+from world.rules import calculate_health
+from typeclasses.objects_pokemon import Pokemon
+
+
+class PartyException(Exception):
+    """
+    Base exception class for HealthHandler.
+
+        Args:
+            msg (str): informative error message
+    """
+    def __init__(self, msg):
+        self.msg = msg
+
+
+class PartyHandler(object):
+    """Handler for a characters health.
+
+    Args:
+        obj (Character): parent character object. see module docstring
+            for character attribute configuration info.
+
+    Properties
+        party (list): Hold current party, up to 6 Pokemon.
+        box (list): Holds the remainder of owners Pokemon.
+
+    Methods:
+
+        add (str): add a condition to the character's condition list.
+        remove (str): remove a condition to the character's condition list.
+    """
+
+    def __init__(self, obj):
+        """
+        Save reference to the parent typeclass and check appropriate attributes
+
+        Args:
+            obj (typeclass): Pokemon typeclass.
+        """
+        self.obj = obj
+
+        if not self.obj.attributes.has("party"):
+            msg = '`PartyHandler` requires `db.party` attribute on `{}`.'
+            raise PartyException(msg.format(obj))
+
+        if not self.obj.attributes.has("box"):
+            msg = '`PartyHandler` requires `db.box` attribute on `{}`.'
+            raise PartyException(msg.format(obj))
+
+    @property
+    def list(self):
+        """
+        Returns current party.
+
+        Returns:
+            party (list): List of current Pokemon objects in party.
+
+        Returned if:
+            obj.party.list
+        """
+        return self.obj.db.party
+
+    def __str__(self):
+        """
+        Returns current party.
+
+        Returns:
+            party (list): List of current Pokemon objects in party.
+
+        Returned if:
+            str(obj.party)
+        """
+        return ', '.join(pokemon.key for pokemon in self.obj.db.party)
+
+    def __iter__(self):
+        """
+        Iterates through party.
+
+        Returns:
+            pokemon (<Pokemon>): Values of party iterated through.
+
+        Returned if:
+            for pokemon in obj.party
+        """
+        return self.obj.db.party.__iter__()
+
+    def __len__(self):
+        """
+        Returns current party length.
+
+        Returns:
+            length (int): Number of Pokemon objects in current party.
+
+        Returned if:
+            len(obj.party)
+        """
+        return len(self.obj.db.party)
+
+    @property
+    def alive(self):
+        """
+        Returns live Pokemon in current party.
+
+        Returns:
+            party (list): List of current alive Pokemon objects in party.
+
+        Returned if:
+            obj.party.alive
+        """
+        return [pokemon for pokemon in self.obj.db.party if pokemon.health]
+
+    @property
+    def fainted(self):
+        """
+        Returns fainted Pokemon in current party.
+
+        Returns:
+            party (list): List of current fainted Pokemon objects in party.
+
+        Returned if:
+            obj.party.fainted
+        """
+        return [pokemon for pokemon in self.obj.db.party if not pokemon.health]
+
+    @property
+    def box(self):
+        """
+        Returns Pokemon in box.
+
+        Returns:
+            box (list): List of Pokemon objects stored in box.
+
+        Returned if:
+            obj.party.box
+        """
+        return self.obj.db.box
+
+    def add(self, pokemon):
+        """
+        Add Pokemon to party. If at party maximum, Pokemon will be sent to box.
+
+        Returns:
+            True (Boolean): Pokemon was added to party successfully.
+            False (Boolean): Pokemon was sent to box.
+
+        Returned if:
+            obj.party.add(<Pokemon>)
+        """
+        if len(self.obj.db.party) < 6:
+            self.obj.db.party.append(pokemon)
+            return True
+        else:
+            self.obj.db.box.append(pokemon)
+            return False
+
+    def __add__(self, pokemon):
+        """
+        Add Pokemon to party. If at party maximum, Pokemon will be sent to box.
+
+        Returns:
+            True (Boolean): Pokemon was added to party successfully.
+            False (Boolean): Pokemon was sent to box.
+
+        Returned if:
+            obj.party + <Pokemon>
+        """
+        if len(self.obj.db.party) < 6:
+            self.obj.db.party.append(pokemon)
+            return True
+        else:
+            self.obj.db.box.append(pokemon)
+            return False
+
+    def remove(self, pokemon):
+        """
+        Remove Pokemon from party. If party would equal zero it fails.
+
+        Returns:
+            True (Boolean): Pokemon was removed from party successfully.
+            False (Boolean): Pokemon could not be removed.
+
+        Returned if:
+            obj.party.remove(<Pokemon>)
+        """
+        if len(self.obj.db.party) > 1:
+            self.obj.db.party.remove(pokemon)
+            return True
+        else:
+            return False
+
+    def __sub__(self, pokemon):
+        """
+        Remove Pokemon from party. If party would equal zero it fails.
+
+        Returns:
+            True (Boolean): Pokemon was removed from party successfully.
+            False (Boolean): Pokemon could not be removed.
+
+        Returned if:
+            obj.party - <Pokemone>
+        """
+        if len(self.obj.db.party) > 1:
+            self.obj.db.party.remove(pokemon)
+            return True
+        else:
+            return False
+
+    def swap(self, pokemon1, pokemon2):
+        """
+        Swap Pokemon positions within party.
+
+        Returns:
+
+        Returned if:
+            obj.party.swap(<Pokemon>, <Pokemon>)
+        """
+        party = self.list
+        pokemon1, pokemon2 = party.index(pokemon1), party.index(pokemon2)
+        party[pokemon2], party[pokemon1] = party[pokemon1], party[pokemon2]
+
+    def cast(self, pokemon, quiet=False):
+        """
+        Choose a Pokemon to let out of it's Pokeball.
+
+        Returns:
+
+        Returned if:
+            obj.party.cast(<Pokemon>)
+        """
+        pokemon.move_to(self.obj.location, quiet=True)
+        if not quiet:
+            self.obj.location.msg_contents(
+                pokemon.key + " was released from it's "
+                + pokemon.db.pokeball + ".")
+
+    def recall(self, pokemon, quiet=False):
+        """
+        Choose a Pokemon to return to it's Pokeball.
+
+        Returns:
+
+        Returned if:
+            obj.party.retrieve(<Pokemon>)
+        """
+        pokemon.move_to(None, to_none=True)
+        if not quiet:
+            self.obj.location.msg_contents(
+                pokemon.key + " was returned to it's "
+                + pokemon.db.pokeball + ".")
+
+    # release
+
+    def __nonzero__(self):
+        """
+        Support Boolean comparison for living party members.
+
+        Returns:
+            Boolean: True if living party members, False if none.
+
+        Returned if:
+            if obj.party
+        """
+        return bool(self.alive)
+
+    def __eq__(self, value):
+        """
+        Support equality comparison for party length.
+
+        Returns:
+            Boolean: True if equal, False if not.
+
+        Returned if:
+            obj.party == 5
+        """
+        if isinstance(value, int):
+            return len(self.obj.db.party) == value
+        else:
+            return NotImplemented
+
+    def __ne__(self, value):
+        """
+        Support non-equality comparison for party length.
+
+        Returns:
+            Boolean: True if not equal, False if equal.
+
+        Returned if:
+            obj.party != 5
+        """
+        if isinstance(value, int):
+            return len(self.obj.db.party) != value
+        else:
+            return NotImplemented
+
+    def __lt__(self, value):
+        """
+        Support less than comparison for party length.
+
+        Returns:
+            Boolean: True if less than, False if not.
+
+        Returned if:
+            obj.heatlh < 5
+        """
+        if isinstance(value, int):
+            return len(self.obj.db.party) < value
+        else:
+            return NotImplemented
+
+    def __le__(self, value):
+        """
+        Support less than or equal to comparison for party length.
+
+        Returns:
+            Boolean: True if less than or equal, False if not.
+
+        Returned if:
+            obj.party <= 5
+        """
+        if isinstance(value, int):
+            return len(self.obj.db.party) <= value
+        else:
+            return NotImplemented
+
+    def __gt__(self, value):
+        """
+        Support greater than comparison for party length.
+
+        Returns:
+            Boolean: True if greater than, False if not.
+
+        Returned if:
+            obj.party > 5
+        """
+        if isinstance(value, int):
+            return len(self.obj.db.party) > value
+        else:
+            return NotImplemented
+
+    def __ge__(self, value):
+        """
+        Support greater than or equal to comparison for party length.
+
+        Returns:
+            Boolean: True if greater than or equal, False if not.
+
+        Returned if:
+            obj.party >= 5
+        """
+        if isinstance(value, int):
+            return len(self.obj.db.party) >= value
+        else:
+            return NotImplemented
