@@ -30,6 +30,16 @@ implementation though
 wanted to make it more complex, the 'tabletalk' command could add a new cmdset
 to you with new implementations of say/emote etc that redirects outputs only to
 your location.
+
+Notes:
+-Even with checking occupants locations on message, I still feel like I can't 
+avoid having to remove their spaces when they leave a room.
+
+-New plan. 
+You subscribe with a tag. Tag = Place_dbref category = Place.
+sending a message sends it to all the characters with that tag
+using an exit wipes your place category tags
+joining place wipes your category tag
 """
 from evennia.commands.default.muxcommand import MuxCommand
 from evennia.commands.cmdset import CmdSet
@@ -90,7 +100,7 @@ class CmdPlace(MuxCommand):
                                          aliases=aliases)
             place.db.desc = desc if desc else "A place to talk with others."
 
-            # Message Player
+            # Message Caller
             if aliases:
                 string = "You create a new Place: %s (aliases: %s)."
                 string = string % (key, ", ".join(aliases))
@@ -105,7 +115,7 @@ class CmdPlace(MuxCommand):
         places = [place for place in caller.location.contents
                   if place.is_typeclass(PlaceObj)]
         if not places:
-            caller.msg("No channels available.")
+            caller.msg("No Places available.")
             return
 
         # If Places located: Organise EvTable for display
@@ -121,7 +131,7 @@ class CmdPlace(MuxCommand):
         table.reformat_column(3, width=14)
 
         # Send table to player
-        caller.msg("\nAvailable channels:\n%s" % table)
+        caller.msg("\nAvailable Places:\n%s" % table)
             
 
 ###############################################################################
@@ -137,9 +147,19 @@ class PlaceCommand(MuxCommand):
     Usage:
         place[/switch] <message>
         
+    Examples:
+        place/join Hi Guys!
+        	>Player joins the Place
+        	>Player says to group, "Hi Guys!"
+        place How are you?
+        	>Player says to group, "How are you?"
+        place/leave Bye Guys!
+        	>Player says to group, "Bye Guys!"
+        	>Player leaves the group
+        
     Swtich:
         /join - Recieve messages being spoken in the 'place'.
-        /leave - Stop reciving messages spoken in the 'place'.
+        /leave - Stop receiving messages spoken in the 'place'.
 
     """
     obj = None
@@ -150,35 +170,26 @@ class PlaceCommand(MuxCommand):
         place = self.obj
         occupants = place.db.occupants
 
-        if 'join' in self.switches:
-            place.join_occupants(caller)
+        if 'join' in self.switches: place.join_occupants(caller)
 
-            # Send any messages to occupants.
-            if self.args:
-                place.say_to_occupants(self.args)
-
-        elif 'leave' in self.switches:
-            # Send any message to occupants.
-            if self.args:
-                place.say_to_occupants(self.args)
-
-            place.leave_occupants(caller)
-
-        # No Switches
-        # Handle non-occupant messages
+        # Catch non-occupant messages
         if caller not in occupants:
-            caller.msg("To contribute to the conversation you must join "
-                       "the " + place.key)
+            caller.msg("You are not able to join the conversation at the moment.")
             return
 
         # Send message to occupants.
-        msg = caller.key + " says to the group, '" + self.args + "'."
         place.say_to_occupants(caller, msg)
+        
+        if 'leave' in self.switches: place.leave_occupants(caller)
             
             
 class PlaceObj(Object):
     """
-
+	The Place object acts as a localised channel, allowing players to join, 
+	listen to and contribute to the conversation of the subscribers.
+	
+	The join, say and leave messages are stored on the Place so that they
+	can be configured by builders to match the aesthetic of the Place.
     """
     place_command = PlaceCommand
     priority = 101
@@ -196,9 +207,8 @@ class PlaceObj(Object):
     def join_occupants(self, caller):
         """Called when a player joins the 'place'"""
         # Remove caller from other spaces
-        places = [place for place in caller.location.contents
-                  if place.is_typeclass(PlaceObj)]
-        for place in places:
+        for place in [place for place in caller.location.contents
+                  if place.is_typeclass(PlaceObj)]:
             if caller in place.db.occupants:
                 place.leave_occupants(caller)
         
@@ -229,6 +239,7 @@ class PlaceObj(Object):
         caller.msg(self.leave_feedback % self.key)
         self.message_occupants(self.leave_msg % (caller.key, self.key))
                 
+    # Place Cmd Set up Functions.
     def create_place_cmdset(self, exidbobj):
         """
         Helper function for creating an exit command set + command.
