@@ -405,7 +405,7 @@ class AICombatant(characters.Character):
         if text is "Select an action: [R]ock, [P]aper, [S]cissors?":
             # Choose Rock, Paper Scissors
             try:
-                self.ndb.combat_handler.action_callback(self.caller, "Rock")
+                self.ndb.combat_handler.action_callback(self.caller, random.choice(["Rock", "Paper", "Scissors"]))
                 return True
             except:
                 return True
