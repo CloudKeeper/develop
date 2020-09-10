@@ -175,4 +175,89 @@ elemental card is placed on a corresponding element, each rank goes up a point.
 When any card is placed on a non-matching element, each rank goes down a point.
 This does not affect the Same, Plus and Same Wall rules where the cards'
 original ranks apply.
+
+
+◓═════════════════════════════════════════════════════════════════════════════◓
+     Your Deck:         o═════════o═════════o═════════o          Foes Deck:   
+                        ║A1  WT/PY║A2  WT/PY║A3  WT/PY║                       
+ 1.Bulbasaur GR/FT      ║   GR5   ║   GR5   ║   GR5   ║      1.Bulbasaur GR/FT
+   GR1/GR1/GR1/GR1      ║GR5   GR5║GR5   GR5║GR5   GR5║        GR1/GR1/GR1/GR1
+                        ║   GR5   ║   GR5   ║   GR5   ║                       
+ 2.Bulbasaur GR/FT      o═════════o═════════o═════════o      2.Bulbasaur GR/FT
+   GR1/GR1/GR1/GR1      ║B1  WT/PY║B2  WT/PY║B3  WT/PY║        GR1/GR1/GR1/GR1
+                        ║   GR5   ║   GR5   ║   GR5   ║                       
+ 3.Bulbasaur GR/FT      ║GR5   GR5║GR5   GR5║GR5   GR5║      3.Bulbasaur GR/FT
+   GR1/GR1/GR1/GR1      ║   GR5   ║   GR5   ║   GR5   ║        GR1/GR1/GR1/GR1
+                        o═════════o═════════o═════════o                       
+ 4.Bulbasaur GR/FT      ║C1  WT/PY║C2  WT/PY║C3  WT/PY║      4.Bulbasaur GR/FT
+   GR1/GR1/GR1/GR1      ║   GR5   ║   GR5   ║   GR5   ║        GR1/GR1/GR1/GR1
+                        ║GR5   GR5║GR5   GR5║GR5   GR5║                       
+ 5.Bulbasaur GR/FT      ║   GR5   ║   GR5   ║   GR5   ║      5.Bulbasaur GR/FT
+   GR1/GR1/GR1/GR1      o═════════o═════════o═════════o        GR1/GR1/GR1/GR1
+◓═════════════════════════════════════════════════════════════════════════════◓   
+
+◓═════════════════════════════════════════════════════════════════════════════◓
+     Your Deck:         o═════════o═════════o═════════o          Foes Deck:   
+                        ║A1       ║A2       ║A3       ║                       
+ 1.Bulbasaur            ║    5    ║    5    ║    5    ║      1.Bulbasaur      
+   1/1/1/1              ║ 5     5 ║ 5     5 ║ 5     5 ║        1/1/1/1        
+                        ║    5    ║    5    ║    5    ║                       
+ 2.Bulbasaur            o═════════o═════════o═════════o      2.Bulbasaur      
+   1/1/1/1              ║B1       ║B2       ║B3       ║        1/1/1/1        
+                        ║    5    ║    5    ║    5    ║                       
+ 3.Bulbasaur            ║ 5     5 ║ 5     5 ║ 5     5 ║      3.Bulbasaur      
+   1/1/1/1              ║    5    ║    5    ║    5    ║        1/1/1/1        
+                        o═════════o═════════o═════════o                       
+ 4.Bulbasaur            ║C1       ║C2       ║C3       ║      4.Bulbasaur      
+   1/1/1/1              ║    5    ║    5    ║    5    ║        1/1/1/1        
+                        ║ 5     5 ║ 5     5 ║ 5     5 ║                       
+ 5.Bulbasaur            ║    5    ║    5    ║    5    ║      5.Bulbasaur      
+   1/1/1/1              o═════════o═════════o═════════o        1/1/1/1        
+◓═════════════════════════════════════════════════════════════════════════════◓ 
+
+GRS: Grass
+FIR: Fire
+WTR: Water
+BUG: Bug
+NRM: Normal
+PSN: Poison
+ELC: Electric
+GRD: Ground
+FGT: Fighting
+PSY: Psychic
+RCK: Rock
+GHT: Ghost
+ICE: Ice
+DRG: Dragon
+DRK: Dark
+STL: Steel
+FLY: Flying.
+
+GR: Grass
+FR: Fire
+WT: Water
+BG: Bug
+NM: Normal
+PN: Poison
+EL: Electric
+GR: Ground
+FG: Fighting
+PY: Psychic
+RK: Rock
+GH: Ghost
+IC: Ice
+DG: Dragon
+DK: Dark
+ST: Steel
+FL: Flying.
+
+Triple triad
+Cards have: 
+different Pokemon-Pokemon type gives defensive type
+Different move-move gives offensive type
+different poses-just flavor/based on ai battle poses.
+different descriptions-just flavor
+Shiny or not
+different points-same total but distributed randomly
+Specific inventory
 """

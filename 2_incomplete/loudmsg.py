@@ -57,6 +57,7 @@ class LoudRoom(DefaultRoom):
             if exclude:
                 exclude = make_iter(exclude)
                 rooms = [room for room in rooms if room not in exclude]
+            
             for room in rooms:
                 room.msg_contents(text=(message, outkwargs), from_obj=from_obj, **kwargs)
     
@@ -91,6 +92,7 @@ class LoudRoom(DefaultRoom):
             if exclude:
                 exclude = make_iter(exclude)
                 rooms = [room for room in rooms if room not in exclude]
+            
             for room in rooms:
                 room.msg_contents(text=(message, outkwargs), from_obj=from_obj, **kwargs)
 
@@ -127,5 +129,6 @@ class LoudRoom(DefaultRoom):
             if exclude:
                 exclude = make_iter(exclude)
                 rooms = [room for room in rooms if room not in exclude]
+            
             for room in rooms:
                 room.msg_contents(text=(message, outkwargs), from_obj=from_obj, **kwargs)

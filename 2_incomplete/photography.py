@@ -20,16 +20,11 @@ Usage - In-game:
     @create camera:features.photography.Camera
     selfie
 
-# -----------------------------------------------------------------------------
-NOTES:
-Improvements
+Enhancements:
 -Store text on the camera to immbue on the photograph
 
 Photo Valuer:
--Pokemon emotes messages have a value attached to them stored on photo.
--Locations have a value stored on the location -No point of reference on emote.
--Value of photo determined by factors including those values.
-# -----------------------------------------------------------------------------
+-Value of photo determined by determined factors
 """
 
 import time

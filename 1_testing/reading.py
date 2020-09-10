@@ -3,7 +3,8 @@ Reading - TO BE TESTED
 
 Read an in-game book.
 
-Description Description Description Description Description Description
+Creates a book object. 'Use' of the book opens a EvMenu that displays the pages
+of the book.
 
 Usage - In-game:
     @create book:features.reading.Book
@@ -37,9 +38,9 @@ _TGT_ERRMSG = "'{}' could not be located."
 
 class ReadCmdSet(CmdSet):
     """
-    Camera Command Set
+    Read Command Set held by the Character. 
     """
-    key = "cameracmdset"
+    key = "readcmdset"
     priority = 1
 
     def at_cmdset_creation(self):
@@ -59,25 +60,29 @@ class CmdRead(COMMAND_DEFAULT_CLASS):
     help_category = "General"
 
     def func(self):
-        """Pass specified subjects to obj or default to location.contents"""
+        """Triggers an object's at_read() function"""
         caller = self.caller
 
+        # No target given.
         if not self.args:
             caller.msg("Read what?")
             return
 
+        # No target found.
         obj = caller.search(self.args)
         if not obj:
             return
 
+        # Target not readable.
         if not getattr(obj, "at_read", None):
-            caller.msg("You cannot use this object.")
+            caller.msg("You cannot read this object.")
             return
 
+        # Read Target.
         obj.at_read(caller)
 
 # ------------------------------------------------------------------------------
-# Camera Object - Creates photographs when used.
+# Book Object - Holds readable content, triggered by at_read()
 # ------------------------------------------------------------------------------
 
 
@@ -96,8 +101,8 @@ class Book(Object):
         if not self.db.pages:
             self.init_content()
 
-        evmenu.EvMenu(caller, "features.reading",
-                      startnode="photograph_node", persistent=True,
+        evmenu.EvMenu(caller, {"book_node":book_node},
+                      startnode="book_node",
                       cmdset_mergetype="Union",
                       node_formatter=photograph_node_formatter,
                       options_formatter=photograph_options_formattter,
@@ -133,13 +138,13 @@ def photograph_options_formattter(optionlist, caller=None):
     return "You see: " + ", ".join([key for key, msg in optionlist])
 
 
-def photograph_node(caller, input_string):
+def book_node(caller, input_string):
     menu = caller.ndb._menutree
     text = ""
     options = [{"key": "_default",
-                "goto": "photograph_node"}]
+                "goto": "book_node"}]
 
-    pages = menu.book.db.current_page
+    pages = menu.book.db.pages
     current_page = menu.book.db.current_page
 
     # Handle commands

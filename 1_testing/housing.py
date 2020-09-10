@@ -1,5 +1,133 @@
 """
-Housing - INOPERABLE
+Housing using tags - INOPERABLE
+
+When a Character obtains a house, a room object is created in None. 
+
+The room is given a (#character_dbref, category="owner") tag for the owner.
+The room is given a (#character_dbref, category="guest") tag for the guests.
+
+The room is given a (#exit_dbref, category="entrance") tag for the exit.
+
+When using a HousingExit, it searches for rooms you can access (Rooms with 
+the owner or visitor tag) that also have the Exit's tag. It will then present
+a multimatch choice menu / send you there.
+
+"""
+from evennia import DefaultExit
+from evennia.utils import evmenu
+
+# ----------------------------------------------------------------------------
+# Obtaining Houses
+# ----------------------------------------------------------------------------
+
+
+
+# ----------------------------------------------------------------------------
+# Getting to your House
+# ----------------------------------------------------------------------------
+
+"""
+        # Get Available Room Options
+        owned_rooms = self.objects.filter(
+            db_tags__db_key=traversing_object.dbref, db_tags__db_category="owner").filter(
+            db_tags__db_key=self.dbref, db_tags__db_category="entrance")
+        
+        guest_rooms = self.objects.filter(
+            db_tags__db_key=traversing_object.dbref, db_tags__db_category="guest").filter(
+            db_tags__db_key=self.dbref, db_tags__db_category="entrance")
+"""
+
+class UniversalHousingExit(DefaultExit):
+    """
+    Allow access to owned houses.
+    """
+    def at_traverse(self, traversing_object, target_location, **kwargs):
+        """
+        Target_location will be None by default.
+        
+        If a target_location is given, super().at_traverse() there. 
+        If target_location is None, find choices.
+        If only one choice, super().at_traverse() there. 
+        If multiple choices, prompt a decision then recursively call at_traverse
+        """
+        # If target_location, go there (Usually from recursive func call)
+        if target_location:
+            super().at_traverse(traversing_object, target_location, **kwargs)
+            return
+            
+        # Get Available Room Options
+        owned_rooms = self.objects.filter(
+            db_tags__db_key=traversing_object.dbref, db_tags__db_category="owner")
+        
+        guest_rooms = self.objects.filter(
+            db_tags__db_key=traversing_object.dbref, db_tags__db_category="guest")
+        
+        # If no options, tell traversing_object
+        traversing_object.msg('You cannot access any rooms here.')
+        
+        # If only one option, go there.
+        combined_rooms = owned_rooms + guest_rooms
+        if len(combined_rooms) == 1:
+            super().at_traverse(traversing_object, combined_rooms[0], **kwargs)
+        
+        # If multiple options, make them select a target.
+        evmenu.EvMenu(traversing_object, {"choice_prompt":choice_prompt},
+                      startnode="choice_prompt",
+                      cmdset_mergetype="Union",
+                      cmd_on_exit=None,
+                      callback=self.at_traverse,
+                      list1=owned_rooms,
+                      list2=guest_rooms)
+
+def choice_prompt(caller, input_string):
+    """
+    Presents a prompt to the player to choose between the items of two lists.
+    
+    Choose a location (1 - 3):
+    Your Apartments:
+    1. Player's Room
+    
+    Other's Apartments:
+    2. Tom's Room
+    3. Jerry's Room
+    """
+    menu = caller.ndb._menutree
+    list1 = menu.list1
+    list2 = menu.list2
+    text = ""
+    options = [{"key": "_default",
+                "goto": "choice_prompt"}]
+                
+    # If valid input_string, callback response (Usually from recursive node call)
+    if isinstance(input_string, int) and 0 < input_string <= (len(menu.list1) + len(menu.list2)):
+        input_string = int(input_string)
+        menu.callback(caller, (list1[input_string-1] if input_string <= len(list1) else list2[input_string-len(list1)-1]))
+        return None, None
+        #If not within range, tell them to pick again, display again.
+    
+    # Build Prompt
+    text = "Choose a location (1 - " + str(len(list1) + len(list2)) + "):\n"
+    text += "Your Apartments:\n"
+    n = 1
+    for value in menu.list1:
+        text += str(n) + ". " + value.name + "\n"
+        n += 1
+    text += "\nOther's Apartmets:\n"
+    for value in menu.list2:
+        text += str(n) + ". " + value.name + "\n"
+        n += 1
+    
+    # Display Prompt.
+    return text, options
+
+
+"""
+IDEAS:
+
+Ways of getting houses:
+-At character create.
+-Buy from NPC.
+
 
 -Character Mixin
 -Exit Obj
@@ -224,4 +352,5 @@ functions for returning owners etc
 
 Entrance exit
 with multiroom prompt
+
 """

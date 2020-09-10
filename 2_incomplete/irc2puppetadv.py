@@ -33,6 +33,9 @@ Install Instructions:
     1. Ensure IRC is enabled in your games settings file. "IRC_ENABLED = False"
     2. Import the BotCmdSet to your character CmdSet. "self.add(irc2puppet.BotCmdSet())"
     3. @irc2puppet <ircnetwork> <port> <#irchannel> <botname>
+    
+Expansions:
+-Hide idles
 """
 
 import sys

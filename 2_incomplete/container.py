@@ -52,6 +52,7 @@ class CmdGet(COMMAND_DEFAULT_CLASS):
             location = caller.location
         if not location:
             return
+        
         # TO DO Add some sort of check that you can get objects from target
 
         # Get Object. We have to allow for Player Stash
